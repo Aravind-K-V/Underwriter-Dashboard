@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useMediaQuery } from 'react-responsive';
-import { Bell, Settings, DollarSign, Shield } from 'lucide-react'; // ✅ Using Lucide icons
+import { Bell, Settings, DollarSign, Shield } from 'lucide-react'; //  Using Lucide icons
 import avatar from '../../assets/underwriter-dashboard-icons/user3.svg';
 import calendericon from '../../assets/upload_icons/CalendarFilled.svg';
 // Import SVG icons
@@ -36,13 +36,13 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
   const [underwritingData, setUnderwritingData] = useState(null);
   const [userData, setUserData] = useState(null);
 
-  // ✅ NEW: Add state for insurance data
+  //  NEW: Add state for insurance data
   const [insuranceData, setInsuranceData] = useState({
     premium: null,
     sumInsured: null
   });
 
-  // ✅ NEW: Add state for current status tracking
+  //  NEW: Add state for current status tracking
   const [currentStatus, setCurrentStatus] = useState("");
 
   const { proposer_id } = useParams();
@@ -64,21 +64,21 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
     return maskedPart + lastFour;
   };
 
-  // ✅ NEW: Function to fetch insurance data (premium and sum insured)
+  //  NEW: Function to fetch insurance data (premium and sum insured)
   const fetchInsuranceData = async () => {
     if (!proposer_id) {
-      console.log('[INSURANCE] No proposer_id found');
+      console.debug('[DocumentUpload][Header] No proposer_id found for insurance data');
       return;
     }
 
     try {
-      console.log('[INSURANCE] Fetching insurance data for proposer_id:', proposer_id);
+      console.info('[DocumentUpload][Header] Fetching insurance data for proposer_id:', proposer_id);
 
       // Fetch premium from proposer table
-      const proposerResponse = await fetch(`http://13.232.45.218:5000/api/proposers/${proposer_id}/insurance-details`);
+      const proposerResponse = await fetch(`http://localhost:5000/api/proposers/${proposer_id}/insurance-details`);
 
       // Fetch sum insured from insured_member table
-      const memberResponse = await fetch(`http://13.232.45.218:5000/api/insured-members/${proposer_id}`);
+      const memberResponse = await fetch(`http://localhost:5000/api/insured-members/${proposer_id}`);
 
       let premium = null;
       let sumInsured = null;
@@ -87,9 +87,9 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       if (proposerResponse.ok) {
         const proposerInsuranceData = await proposerResponse.json();
         premium = proposerInsuranceData.premium_amount;
-        console.log('[INSURANCE] Premium fetched:', premium);
+        console.debug('[DocumentUpload][Header] Premium fetched:', premium);
       } else {
-        console.warn('[INSURANCE] Failed to fetch premium from proposer table');
+        console.warn('[DocumentUpload][Header] Failed to fetch premium from proposer table');
       }
 
       // Get sum insured from insured_member table
@@ -99,13 +99,13 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
         if (Array.isArray(memberData) && memberData.length > 0) {
           // Take the first member's sum insured or sum all members
           sumInsured = memberData[0].sum_insured;
-          console.log('[INSURANCE] Sum insured fetched:', sumInsured);
+          console.debug('[DocumentUpload][Header] Sum insured fetched:', sumInsured);
         } else if (memberData.sum_insured) {
           sumInsured = memberData.sum_insured;
-          console.log('[INSURANCE] Sum insured fetched:', sumInsured);
+          console.debug('[DocumentUpload][Header] Sum insured fetched:', sumInsured);
         }
       } else {
-        console.warn('[INSURANCE] Failed to fetch sum insured from insured_member table');
+        console.warn('[DocumentUpload][Header] Failed to fetch sum insured from insured_member table');
       }
 
       setInsuranceData({
@@ -114,7 +114,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       });
 
     } catch (error) {
-      console.error('[INSURANCE] Error fetching insurance data:', error);
+      console.error('[DocumentUpload][Header] Error fetching insurance data:', error.message);
       setInsuranceData({
         premium: null,
         sumInsured: null
@@ -122,46 +122,46 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
     }
   };
 
-  // ✅ NEW: Function to fetch current status from underwriting_requests table
+  //  NEW: Function to fetch current status from underwriting_requests table
   const fetchCurrentStatus = async () => {
     if (!proposer_id) {
-      console.log('[STATUS] No proposer_id found in URL params');
+      console.debug('[DocumentUpload][Header] No proposer_id found in URL params');
       setCurrentStatus("");
       return;
     }
 
     try {
-      console.log('[STATUS] Fetching underwriting status for proposer_id:', proposer_id);
+      console.info('[DocumentUpload][Header] Fetching underwriting status for proposer_id:', proposer_id);
 
-      // ✅ FIXED: Correct URL path
-      const response = await fetch(`http://13.232.45.218:5000/api/underwriting/underwriting-status/${proposer_id}`);
+      //  FIXED: Correct URL path
+      const response = await fetch(`http://localhost:5000/api/underwriting/underwriting-status/${proposer_id}`);
 
       if (response.ok) {
         const statusData = await response.json();
-        console.log('[STATUS] Fetched status from underwriting_requests:', statusData);
+        console.debug('[DocumentUpload][Header] Fetched status from underwriting_requests:', statusData);
 
         // Set the status from the database
         const status = statusData.status;
         setCurrentStatus(status);
-        console.log('[STATUS] Current status set to:', status);
+        console.debug('[DocumentUpload][Header] Current status set to:', status);
       } else {
-        console.error('[STATUS] Failed to fetch status:', response.status, response.statusText);
+        console.error('[DocumentUpload][Header] Failed to fetch status:', response.status, response.statusText);
         setCurrentStatus('NOT RETRIEVED');
       }
     } catch (error) {
-      console.error('[STATUS] Error fetching underwriting status:', error);
+      console.error('[DocumentUpload][Header] Error fetching underwriting status:', error.message);
       setCurrentStatus('NOT RETRIEVED');
     }
   };
 
-  // ✅ NEW: Listen for status updates from Finance Table
+  //  NEW: Listen for status updates from Finance Table
   useEffect(() => {
     const handleStatusUpdate = (event) => {
       const { proposer_id: updatedProposerId, status } = event.detail;
 
       // Only update if it's for the current proposer
       if (updatedProposerId === proposer_id) {
-        console.log('[HEADER] Status updated via event:', status);
+        console.debug('[DocumentUpload][Header] Status updated via event:', status);
         setCurrentStatus(status);
 
         // Also update underwritingData to keep it in sync
@@ -181,10 +181,10 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
     };
   }, [proposer_id]);
 
-  // ✅ UPDATED: Fetch initial status and insurance data when component mounts
+  //  UPDATED: Fetch initial status and insurance data when component mounts
   useEffect(() => {
     fetchCurrentStatus();
-    fetchInsuranceData(); // ✅ NEW: Fetch insurance data
+    fetchInsuranceData(); //  NEW: Fetch insurance data
   }, [proposer_id]);
 
   useEffect(() => {
@@ -192,46 +192,43 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       if (proposer_id) {
         try {
           // Fetch proposer data
-          const proposerResponse = await fetch(`http://13.232.45.218:5000/api/proposers/${proposer_id}`);
+          const proposerResponse = await fetch(`http://localhost:5000/api/proposers/${proposer_id}`);
           if (proposerResponse.ok) {
             const proposerData = await proposerResponse.json();
             setProposerData(proposerData);
           } else {
-            console.error('Failed to fetch proposer data');
+            console.error('[DocumentUpload][Header] Failed to fetch proposer data');
           }
 
-          // ✅ FIXED: Corrected URL path - removed /underwriting prefix
-          console.log('📡 Fetching underwriting data for proposer:', proposer_id);
-          const underwritingResponse = await fetch(`http://13.232.45.218:5000/api/underwriting/underwriting-requests/${proposer_id}`);
+          //  FIXED: Corrected URL path - removed /underwriting prefix
+          console.info('[DocumentUpload][Header] Fetching underwriting data for proposer:', proposer_id);
+          const underwritingResponse = await fetch(`http://localhost:5000/api/underwriting/underwriting-requests/${proposer_id}`);
           if (underwritingResponse.ok) {
             const underwritingData = await underwritingResponse.json();
 
             // 🔍 ENHANCED DEBUG LOGGING
-            console.log('📊 Raw underwriting response:', underwritingResponse);
-            console.log('📊 Parsed underwriting data:', underwritingData);
-            console.log('📊 Request ID found:', underwritingData?.request_id);
-            console.log('📊 Data type check:', typeof underwritingData);
-            console.log('📊 Is array?', Array.isArray(underwritingData));
+            console.debug('[DocumentUpload][Header] Raw underwriting response received');
+            console.debug('[DocumentUpload][Header] Parsed underwriting data:', { hasData: !!underwritingData, requestId: underwritingData?.request_id });
+            console.debug('[DocumentUpload][Header] Data type check:', { type: typeof underwritingData, isArray: Array.isArray(underwritingData) });
 
             // Handle if data comes as array (fallback)
             const finalData = Array.isArray(underwritingData) ? underwritingData[0] : underwritingData;
 
-            console.log('📊 Final processed data:', finalData);
-            console.log('📊 Final request_id:', finalData?.request_id);
+            console.debug('[DocumentUpload][Header] Final processed data:', { hasData: !!finalData, requestId: finalData?.request_id });
 
             setUnderwritingData(finalData);
 
-            // ✅ NEW: Set current status from underwriting data
+            //  NEW: Set current status from underwriting data
             if (finalData?.status) {
               setCurrentStatus(finalData.status);
             }
           } else {
-            console.warn('No underwriting request found, creating test request...');
+            console.warn('[DocumentUpload][Header] No underwriting request found, creating test request');
 
             // Try to create a test request
             try {
-              // ✅ FIXED: Correct URL path for test request creation
-              const createResponse = await fetch(`http://13.232.45.218:5000/api/underwritng/underwriting-requests/${proposer_id}/test`, {
+              //  FIXED: Correct URL path for test request creation
+              const createResponse = await fetch(`http://localhost:5000/api/underwritng/underwriting-requests/${proposer_id}/test`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -244,19 +241,19 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
 
               if (createResponse.ok) {
                 const testData = await createResponse.json();
-                console.log('✅ Test request created:', testData);
+                console.info('[DocumentUpload][Header] Test request created successfully:', { hasData: !!testData });
                 setUnderwritingData(testData.data);
                 setCurrentStatus(testData.data?.status);
               } else {
                 throw new Error('Failed to create test request');
               }
             } catch (testError) {
-              console.error('❌ Failed to create test request:', testError);
+              console.error('[DocumentUpload][Header] Failed to create test request:', testError.message);
               setCurrentStatus('NOT RETRIEVED');
             }
           }
         } catch (error) {
-          console.error('Error fetching data:', error);
+          console.error('[DocumentUpload][Header] Error fetching data:', error.message);
           setCurrentStatus('NOT RETRIEVED');
         }
       }
@@ -264,54 +261,51 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
 
     // Enhanced user data loading from user_login table
     const loadUserDataFromUserLogin = async () => {
-      console.log('[USER_LOGIN] Starting to load user data from user_login table...');
+      console.info('[DocumentUpload][Header] Loading user data from user_login table');
 
       // Try localStorage first
       const storedUser = localStorage.getItem('user');
-      console.log('[USER_LOGIN] Raw data from localStorage:', storedUser);
+      console.debug('[DocumentUpload][Header] Raw data from localStorage:', { hasData: !!storedUser });
 
       if (storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
-          console.log('[USER_LOGIN] Parsed user data:', parsedUser);
-          console.log('[USER_LOGIN] Name from localStorage:', parsedUser?.name);
-          console.log('[USER_LOGIN] Email from localStorage:', parsedUser?.email_id);
+          console.debug('[DocumentUpload][Header] Parsed user data:', { hasName: !!parsedUser?.name, hasEmail: !!parsedUser?.email_id });
 
           if (parsedUser?.name && parsedUser?.email_id) {
-            console.log('[USER_LOGIN] Complete user data found in localStorage');
+            console.info('[DocumentUpload][Header] Complete user data found in localStorage');
             setUserData(parsedUser);
             return;
           } else {
-            console.warn('[USER_LOGIN] Incomplete user data in localStorage');
+            console.warn('[DocumentUpload][Header] Incomplete user data in localStorage');
           }
         } catch (error) {
-          console.error('[USER_LOGIN] Error parsing localStorage data:', error);
+          console.error('[DocumentUpload][Header] Error parsing localStorage data:', error.message);
         }
       }
 
       // Fallback: fetch directly from user_login table
       const email = storedUser ? JSON.parse(storedUser)?.email_id : null;
       if (email) {
-        console.log('[USER_LOGIN] Fetching user from user_login table for email:', email);
+        console.info('[DocumentUpload][Header] Fetching user from user_login table for email:', email);
         try {
-          const response = await fetch(`http://13.232.45.218:5000/api/current-user/${encodeURIComponent(email)}`);
+          const response = await fetch(`http://localhost:5000/api/current-user/${encodeURIComponent(email)}`);
 
           if (response.ok) {
             const userFromDB = await response.json();
-            console.log('[USER_LOGIN] Successfully fetched user from user_login table:', userFromDB);
-            console.log('[USER_LOGIN] Name from user_login table:', userFromDB.name);
+            console.info('[DocumentUpload][Header] Successfully fetched user from user_login table:', { name: userFromDB.name, email: userFromDB.email_id });
 
             setUserData(userFromDB);
             // Update localStorage with fresh data from user_login table
             localStorage.setItem('user', JSON.stringify(userFromDB));
           } else {
-            console.error('[USER_LOGIN] Failed to fetch user from server:', response.status);
+            console.error('[DocumentUpload][Header] Failed to fetch user from server:', response.status);
           }
         } catch (error) {
-          console.error('[USER_LOGIN] Error fetching user from user_login table:', error);
+          console.error('[DocumentUpload][Header] Error fetching user from user_login table:', error.message);
         }
       } else {
-        console.error('[USER_LOGIN] No email found, cannot fetch from user_login table');
+        console.error('[DocumentUpload][Header] No email found, cannot fetch from user_login table');
       }
     };
 
@@ -321,12 +315,12 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
 
   // Log when activeTab changes for debugging
   useEffect(() => {
-    console.log('[BREADCRUMB] Active tab changed to:', activeTab);
+    console.debug('[DocumentUpload][Header] Active tab changed to:', activeTab);
   }, [activeTab]);
 
   // Handle logout
   const handleLogout = () => {
-    console.log('[LOGOUT] Logging out user');
+    console.info('[DocumentUpload][Header] User logout initiated');
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
     localStorage.removeItem('isAuthenticated');
@@ -349,7 +343,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
 
   // Handle status updated callback
   const handleStatusUpdated = (newStatus, requestId) => {
-    console.log(`🔄 Status callback received: ${newStatus} for request ${requestId}`);
+    console.debug('[DocumentUpload][Header] Status callback received:', { status: newStatus, requestId });
 
     // Update both the local underwritingData state and currentStatus
     setUnderwritingData(prev => ({
@@ -371,7 +365,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
     });
   };
 
-  // ✅ NEW: Helper function to format currency
+  //  NEW: Helper function to format currency
   const formatCurrency = (amount) => {
     if (!amount) return 'N/A';
     return new Intl.NumberFormat('en-IN', {
@@ -382,7 +376,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
     }).format(amount);
   };
 
-  // ✅ UPDATED: Helper function to get status color with more status options
+  //  UPDATED: Helper function to get status color with more status options
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'approved':
@@ -419,18 +413,17 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
 
   // Get user's display name from user_login table
   const getUserDisplayName = () => {
-    console.log('[DISPLAY_NAME] Getting display name...');
-    console.log('[DISPLAY_NAME] Current userData:', userData);
+    console.debug('[DocumentUpload][Header] Getting display name');
 
     if (userData && userData.name) {
       const fullName = userData.name.trim();
       const firstName = fullName.split(' ')[0];
-      console.log('[DISPLAY_NAME] Name found from user_login - Full:', fullName, 'First:', firstName);
+      console.debug('[DocumentUpload][Header] Name found from user_login:', { fullName, firstName });
       return firstName;
     }
 
     // Fallback: try localStorage directly
-    console.log('[DISPLAY_NAME] Trying localStorage fallback...');
+    console.debug('[DocumentUpload][Header] Trying localStorage fallback');
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -438,15 +431,15 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
         if (parsedUser && parsedUser.name) {
           const fullName = parsedUser.name.trim();
           const firstName = fullName.split(' ');
-          console.log('[DISPLAY_NAME] Name found in localStorage - Full:', fullName, 'First:', firstName);
+          console.debug('[DocumentUpload][Header] Name found in localStorage:', { fullName, firstName });
           return firstName;
         }
       } catch (error) {
-        console.error('[DISPLAY_NAME] Error in localStorage fallback:', error);
+        console.error('[DocumentUpload][Header] Error in localStorage fallback:', error.message);
       }
     }
 
-    console.log('[DISPLAY_NAME] No name found, returning "User"');
+    console.debug('[DocumentUpload][Header] No name found, returning "User"');
     return 'User';
   };
 
@@ -462,7 +455,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
         const parsedUser = JSON.parse(storedUser);
         return parsedUser?.name || 'User';
       } catch (error) {
-        console.error('Error getting full name:', error);
+        console.error('[DocumentUpload][Header] Error getting full name:', error.message);
       }
     }
 
@@ -734,7 +727,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
           <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center gap-6'}`}>
             <div className={`flex items-center gap-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
               <div className="w-4 h-4 bg-[#0252A9] text-white text-[10px] rounded-full flex items-center justify-center">✓</div>
-              {/* ✅ UPDATED: Use currentStatus instead of underwritingData?.status */}
+              {/*  UPDATED: Use currentStatus instead of underwritingData?.status */}
               <span style={{ fontFamily: 'PP Neue Montreal, sans-serif' }}>
                 Current Status: <span className={`font-semibold ${getStatusColor(currentStatus)}`}>{currentStatus}</span>
               </span>
@@ -790,7 +783,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch(`http://13.232.45.218:5000/api/underwriting/underwriting-requests/${proposer_id}/test`, {
+                    const response = await fetch(`http://localhost:5000/api/underwriting/underwriting-requests/${proposer_id}/test`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -804,7 +797,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
                       window.location.reload();
                     }
                   } catch (error) {
-                    console.error('Failed to create test request:', error);
+                    console.error('[DocumentUpload][Header] Failed to create test request:', error);
                   }
                 }}
                 className="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"

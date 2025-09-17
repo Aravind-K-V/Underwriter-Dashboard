@@ -3,6 +3,8 @@
 
 // Import routing and layout components from react-router-dom
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// Import React hooks for logging
+import React, { useEffect } from "react";
 // Import custom components for the forgot password page
 import RightSectionForgot from "../components/login-screen/RightSectionForgot";
 import Layout from "../components/login-screen/Layout";
@@ -10,6 +12,15 @@ import LoginHeader from "../components/login-screen/LoginHeader";
 
 // Define the Forgot component
 const Forgot = () => {
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[Pages][ForgotPasswordScreen] Forgot password screen mounted');
+    
+    return () => {
+      console.debug('[Pages][ForgotPasswordScreen] Forgot password screen unmounting');
+    };
+  }, []);
+
   return (
     // Render the forgot password page using the reusable Layout component
     <Layout

@@ -1,0 +1,214 @@
+version: 1.0
+name: HealthScoreRuleEngine
+description: Rule-based health score (0–100) combining Lifestyle (40) and CBC (60)
+metadata:
+  source: Health Score Engine Requirements v1.pdf
+  output:
+    - health_score: int 0-100
+    - risk_category: [Excellent, Good, Fair, Concerning]
+    - score_factors: top-3 contributors
+    - underwriting_flag: [Pass, Manual Review, Decline]
+
+weights:
+  lifestyle_points: 40
+  cbc_points: 60
+
+preprocessing:
+  normalization:
+    - trim_strings: true
+    - upper_case_enums: true
+  imputation:
+    - smoking_status: "Unknown"
+    - alcohol_consumption: "Unknown"
+    - physical_activity_minutes_week: null
+    - diet_quality: "Unknown"
+    - sleep_hours: null
+    - sex: "Unknown"
+  validation:
+    required_minimal:
+      - sex
+    soft_required:
+      - age
+      - bmi
+  units:
+    - hemoglobin: "g/dL"
+    - wbc: "10^9/L"
+    - platelets: "10^9/L"
+    - mcv: "fL"
+  missing_policy:
+    lifestyle_missing_to_zero: false
+    cbc_missing_per_marker_points: 0
+
+components:
+  lifestyle:
+    max_points: 40
+    subcomponents:
+      smoking:
+        max_points: 10
+        field: smoking_status
+        mapping:
+          NON_SMOKER: 10
+          FORMER_SMOKER_GT_1Y: 7
+          OCCASIONAL_SMOKER: 4
+          REGULAR_SMOKER: 0
+          UNKNOWN: 4
+      alcohol:
+        max_points: 6
+        field: alcohol_consumption
+        mapping:
+          NONE_RARE: 6
+          MODERATE_WITHIN_GUIDELINES: 4
+          ABOVE_GUIDELINES: 1
+          UNKNOWN: 3
+      physical_activity:
+        max_points: 10
+        fields:
+          - physical_activity_minutes_week
+        thresholds:
+          - if: minutes >= 150  # moderate OR >=75 vigorous equivalence assumed
+            points: 10
+          - if: 75 <= minutes < 150
+            points: 6
+          - if: minutes < 75 or minutes is null
+            points: 2
+      diet:
+        max_points: 8
+        field: diet_quality
+        mapping:
+          HEALTHY_BALANCED: 8
+          MIXED: 4
+          POOR: 0
+          UNKNOWN: 4
+      sleep:
+        max_points: 6
+        fields:
+          - sleep_hours
+          - sleep_quality  # optional: GOOD/POOR
+        rules:
+          - if: 7 <= sleep_hours <= 9 and sleep_quality != "POOR"
+            points: 6
+          - if: (6 <= sleep_hours < 7) or (9 < sleep_hours <= 10)
+            points: 3
+          - if: sleep_hours < 6 or sleep_hours is null or sleep_quality == "POOR"
+            points: 0
+
+  cbc:
+    max_points: 60
+    markers:
+      hemoglobin:
+        max_points: 12
+        fields: [hemoglobin, sex]
+        normal_ranges:
+          Female: [12.0, 16.0]
+          Male: [13.5, 17.5]
+          Unknown: [12.0, 17.5]
+        scoring:  # distance-based bands (relative to closest bound)
+          within_normal: 12
+          mild_abnormal_pct: [0.10, 8]     # 10–20% outside → 6–8 (we split into two bands)
+          moderate_abnormal_pct: [0.20, 4] # 20–40% outside → 2–4 (we split into two bands)
+          severe_abnormal_pct: [0.40, 0]
+          # Exact banding below (overrides comments above)
+        bands:
+          - pct_outside <= 0.00: 12
+          - 0.00 < pct_outside <= 0.10: 10
+          - 0.10 < pct_outside <= 0.20: 8
+          - 0.20 < pct_outside <= 0.30: 4
+          - 0.30 < pct_outside <= 0.40: 2
+          - pct_outside > 0.40: 0
+
+      wbc:
+        max_points: 12
+        field: wbc
+        normal_range: [4.0, 11.0]  # x10^9/L
+        bands:
+          - pct_outside <= 0.00: 12
+          - 0.00 < pct_outside <= 0.10: 10
+          - 0.10 < pct_outside <= 0.20: 8
+          - 0.20 < pct_outside <= 0.30: 4
+          - 0.30 < pct_outside <= 0.40: 2
+          - pct_outside > 0.40: 0
+
+      platelets:
+        max_points: 12
+        field: platelets
+        normal_range: [150, 400]  # x10^9/L
+        bands:
+          - pct_outside <= 0.00: 12
+          - 0.00 < pct_outside <= 0.10: 10
+          - 0.10 < pct_outside <= 0.20: 8
+          - 0.20 < pct_outside <= 0.30: 4
+          - 0.30 < pct_outside <= 0.40: 2
+          - pct_outside > 0.40: 0
+
+      mcv:
+        max_points: 12
+        field: mcv
+        normal_range: [80, 100]  # fL
+        bands:
+          - pct_outside <= 0.00: 12
+          - 0.00 < pct_outside <= 0.10: 10
+          - 0.10 < pct_outside <= 0.20: 8
+          - 0.20 < pct_outside <= 0.30: 4
+          - 0.30 < pct_outside <= 0.40: 2
+          - pct_outside > 0.40: 0
+
+      rbc_pattern:
+        max_points: 12
+        fields: [hb_low_flag, mcv_low_flag, rdw_high_flag]
+        pattern_rules:
+          - if: hb_low_flag == true and mcv_low_flag == true  # iron deficiency pattern
+            points: 4
+          - if: hb_low_flag == false and mcv_low_flag == false and rdw_high_flag != true
+            points: 12
+          - else: 8
+
+aggregation:
+  final_score:
+    formula: "round(lifestyle_points + cbc_points)"
+  risk_buckets:
+    - if: score >= 85
+      category: "Excellent"
+      underwriting_flag: "Pass"
+    - if: 70 <= score < 85
+      category: "Good"
+      underwriting_flag: "Pass"
+    - if: 50 <= score < 70
+      category: "Fair"
+      underwriting_flag: "Manual Review"
+    - if: score < 50
+      category: "Concerning"
+      underwriting_flag: "Manual Review"
+
+explainability:
+  top_factors:
+    - largest_positive_contributors: 3
+    - largest_negative_contributors: 3
+  capture:
+    - component_breakdown: true
+    - marker_distances: true
+    - lifestyle_subscores: true
+
+logic_notes:
+  pct_outside_definition: >
+    pct_outside = min(
+      abs(value - lower)/lower if value < lower else +inf,
+      abs(value - upper)/upper if value > upper else +inf,
+      0 if lower <= value <= upper
+    )
+  vigorous_equivalence: >
+    If vigorous minutes is tracked separately, consider 1 minute vigorous ≈ 2 minutes moderate
+    when computing weekly activity minutes equivalence.
+  unknown_defaults: >
+    Unknown categorical lifestyle fields assign mid-level points to avoid extreme bias.
+  extensibility: >
+    Markers and lifestyle items are modular; add new markers with the same bands and adjust weights.
+
+validation_and_flags:
+  critical_missing:
+    - if: sex in ["Unknown", null]
+      action: "Score with wider Hb range, add warning"
+  quality_checks:
+    - if: member_dob is null
+      action: "add_warning: Missing DOB"
+    - if: bmi is null and (height_cm is null or weight_kg is null)
+      action: "add_warning: Missing BMI inputs"

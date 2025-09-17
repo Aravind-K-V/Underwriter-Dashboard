@@ -24,9 +24,9 @@ const LoginPage = () => {
     }
 
     try {
-      console.log('Attempting login with email:', email);
+      console.info('[Auth][Login] User login request received:', email);
       
-      const response = await fetch('http://13.232.45.218:5000/api/login', {
+      const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -39,15 +39,12 @@ const LoginPage = () => {
       });
 
       const data = await response.json();
-      console.log('Full login response received:', data);
-      console.log('User object from server:', data.user);
-      console.log('Name from server:', data.user?.name);
+      console.debug('[Auth][Login] Server response received:', { success: data.success, hasUser: !!data.user });
 
       if (data.success && data.user) {
         // Verify that name exists
         if (!data.user.name) {
-          console.error('ERROR: Server response missing name field!');
-          console.error('User object:', data.user);
+          console.error('[Auth][Login] Server response missing required name field:', data.user);
           setError('Login successful but user name not found. Please contact support.');
           setIsLoading(false);
           return;
@@ -63,26 +60,24 @@ const LoginPage = () => {
           created_date: data.user.created_date
         };
 
-        console.log('Storing user data from user_login table:', userDataToStore);
+        console.info('[Auth][Login] Storing user data in localStorage:', { user_id: userDataToStore.user_id, name: userDataToStore.name });
         localStorage.setItem('user', JSON.stringify(userDataToStore));
         localStorage.setItem('isAuthenticated', 'true');
         
         // Immediate verification
         const storedData = localStorage.getItem('user');
         const parsedData = JSON.parse(storedData);
-        console.log('VERIFICATION - Raw stored data:', storedData);
-        console.log('VERIFICATION - Parsed data:', parsedData);
-        console.log('VERIFICATION - Name in storage:', parsedData?.name);
+        console.debug('[Auth][Login] Verification - stored data retrieved successfully:', { hasName: !!parsedData?.name });
         
-        console.log('Login successful, navigating to dashboard');
+        console.info('[Auth][Login] Login successful, navigating to dashboard');
         navigate('/dashboard');
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');
-        console.error('Login failed:', data);
+        console.warn('[Auth][Login] Login failed:', data.message);
       }
     } catch (error) {
       setError('An error occurred during login. Please try again.');
-      console.error('Login error:', error);
+      console.error('[Auth][Login] Login request failed:', error.message);
     } finally {
       setIsLoading(false);
     }

@@ -16,15 +16,17 @@ const pool = new Pool({
 
 // Test connection on first query (lazy initialization)
 pool.on('connect', () => {
+  console.info('[Database][Connection] Connected to local database successfully');
   prettyLog('Connected to local database successfully', {
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
     timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-  });
+  }, { level: 'info' });
 });
 
 pool.on('error', (err) => {
-  prettyLog('Database connection error', { error: err.message, stack: err.stack });
+  console.error('[Database][Connection] Database connection error:', err.message);
+  prettyLog('Database connection error', { error: err.message, stack: err.stack }, { level: 'error' });
 });
 
 export default pool;

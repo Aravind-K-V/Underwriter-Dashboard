@@ -35,7 +35,7 @@ const RightSectionregister = ({
   // Initialize navigation hook
   const navigate = useNavigate();
 
-  // Handle registration submission with API call
+  // Handle register submission with API call
   const handleRegister = async () => {
     // Validate password match
     if (password !== confirmPassword) {
@@ -43,32 +43,41 @@ const RightSectionregister = ({
       if (setPropError) setPropError('Passwords do not match'); // Sync error with parent
       return;
     }
-
-    console.log('handleRegister called with:', { name, email_id: email, password }); // Debug log
+    
+    console.info('[Auth][RightSectionRegister] Registration attempt initiated:', { name, email_id: email });
     try {
-      // Send registration request to API
-      const response = await axios.post('http://13.232.45.218:5000/api/register', {
+      // Send register request to API
+      const response = await axios.post('http://localhost:5000/api/register', {
         name,
-        email_id: email, // Match backend expected field name
+        email_id: email,
         password,
       });
 
-      console.log('Server response:', response.data); // Debug log
+      console.debug('[Auth][RightSectionRegister] Server response received:', { success: response.data.success });
+      
       if (response.data.success) {
-        setSuccessMsg(response.data.message); // Display success message
-        setErrorMsg(''); // Clear error message
-        if (setPropError) setPropError(''); // Clear parent error
+        setSuccessMsg('Registration successful! Please login.'); // Display success message
+        setErrorMsg('');
+        if (typeof setPropError === 'function') {
+          setPropError(''); // Clear parent error if function exists
+        }
+        console.info('[Auth][RightSectionRegister] Registration successful, redirecting to login');
         setTimeout(() => navigate('/login'), 3000); // Navigate to login page after 3 seconds
       } else {
         setErrorMsg(response.data.message || 'Registration failed'); // Display server error
-        if (setPropError) setPropError(response.data.message || 'Registration failed'); // Sync error with parent
+        if (typeof setPropError === 'function') {
+          setPropError(response.data.message || 'Registration failed');
+        }
         setSuccessMsg('');
+        console.warn('[Auth][RightSectionRegister] Registration failed:', response.data.message);
       }
     } catch (error) {
-      console.error('Register error:', error.response?.data || error.message); // Debug log
+      console.error('[Auth][RightSectionRegister] Registration request failed:', error.response?.data?.message || error.message);
       const errorMessage = error.response?.data?.message || 'Server error';
       setErrorMsg(errorMessage); // Display error
-      if (setPropError) setPropError(errorMessage); // Sync error with parent
+      if (typeof setPropError === 'function') {
+        setPropError(errorMessage);
+      }
       setSuccessMsg('');
     }
   };

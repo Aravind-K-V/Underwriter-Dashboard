@@ -39,11 +39,11 @@ const checkIfValueInNormalRange = (value, referenceRange, testName = '') => {
     const numValue = parseFloat(cleanValue);
 
     if (isNaN(numValue) || !isFinite(numValue)) {
-      prettyLog(`Invalid numeric value for ${testName}: "${value}" -> "${cleanValue}" -> ${numValue}`);
+      prettyLog('Invalid numeric value detected', { testName, value, cleanValue, numValue }, { level: 'warn' });
       return false;
     }
 
-    prettyLog(`Processing ${testName}: value=${numValue}, range=${JSON.stringify(referenceRange)}`);
+    prettyLog('Processing test value', { testName, value: numValue, referenceRange }, { level: 'debug' });
 
     let rangeString = '';
     if (typeof referenceRange === 'object' && referenceRange !== null) {
@@ -52,7 +52,7 @@ const checkIfValueInNormalRange = (value, referenceRange, testName = '') => {
         if (testNameUpper.includes('HIV') || testNameUpper.includes('HBSAG')) {
           rangeString = referenceRange['Non Reactive'];
         } else {
-          prettyLog(`Non-infectious test with infectious range format: ${testName}`);
+          prettyLog('Non-infectious test with infectious range format', { testName }, { level: 'warn' });
           return false;
         }
       } else if (referenceRange['Reference Range']) {
@@ -60,7 +60,7 @@ const checkIfValueInNormalRange = (value, referenceRange, testName = '') => {
       } else if (referenceRange.Normal) {
         rangeString = referenceRange.Normal;
       } else {
-        prettyLog(`Unknown object range format for ${testName}:`, referenceRange);
+        prettyLog('Unknown object range format', { testName, referenceRange }, { level: 'warn' });
         return false;
       }
     } else {
@@ -71,19 +71,19 @@ const checkIfValueInNormalRange = (value, referenceRange, testName = '') => {
     const originalRangeString = rangeString;
     rangeString = cleanRangeString(rangeString);
 
-    prettyLog(`Range string cleanup for ${testName}:`, { original: originalRangeString, cleaned: rangeString });
+    prettyLog('Range string cleanup completed', { testName, original: originalRangeString, cleaned: rangeString }, { level: 'debug' });
 
     const testNameUpper = (testName || '').toUpperCase();
     if (testNameUpper.includes('CHOLESTEROL') && !testNameUpper.includes('HDL')) {
       if (originalRangeString.includes('<200') || originalRangeString.includes('< 200')) {
         const result = numValue < 200;
-        prettyLog(`CHOLESTEROL override: ${numValue} < 200 = ${result ? '✅ PASS' : '❌ FAIL'}`);
+        prettyLog('CHOLESTEROL override applied', { value: numValue, threshold: 200, result }, { level: 'debug' });
         return result;
       }
     } else if (testNameUpper.includes('TRIGLYCERIDE')) {
       if (originalRangeString.includes('<150') || originalRangeString.includes('< 150')) {
         const result = numValue < 150;
-        prettyLog(`TRIGLYCERIDE override: ${numValue} < 150 = ${result ? '✅ PASS' : '❌ FAIL'}`);
+        prettyLog('TRIGLYCERIDE override applied', { value: numValue, threshold: 150, result }, { level: 'debug' });
         return result;
       }
     }
@@ -115,11 +115,11 @@ const checkIfValueInNormalRange = (value, referenceRange, testName = '') => {
     match = rangeString.match(/^<\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
     if (match) return numValue <= parseFloat(match[2]);
 
-    prettyLog(`No pattern matched for ${testName}: "${rangeString}" (cleaned from "${originalRangeString}")`);
+    prettyLog('No pattern matched for test', { testName, rangeString, originalRangeString }, { level: 'warn' });
     return false;
 
   } catch (error) {
-    prettyLog('Range checking error', { testName, value, referenceRange, error: error.message });
+    prettyLog('Range checking error occurred', { testName, value, referenceRange, error: error.message }, { level: 'error' });
     return false;
   }
 };
@@ -153,12 +153,12 @@ const analyzeTestResults = (extractedData) => {
   }
 
   // Debug logging of analysis results
-  console.log('=== SIMPLIFIED ANALYSIS DEBUG ===');
-  console.log('Has results array:', !!extractedData?.results);
-  console.log('Results array length:', extractedData?.results?.length || 0);
-  console.log('Total params found:', totalParams);
-  console.log('Out of range params:', outOfRangeParams.length);
-  console.log('================================');
+  console.debug('[MedicalProcessing][Analysis] Simplified analysis debug:', {
+    hasResultsArray: !!extractedData?.results,
+    resultsArrayLength: extractedData?.results?.length || 0,
+    totalParams,
+    outOfRangeParams: outOfRangeParams.length
+  });
 
   return {
     totalParams,
@@ -265,7 +265,7 @@ const verifyPatientIdentity = (extractedData, proposerData) => {
 
   } catch (error) {
     verification.issues.push(`Verification error: ${error.message}`);
-    prettyLog('Identity verification error', { error: error.message });
+    prettyLog('Identity verification error', { error: error.message }, { level: 'error' });
   }
 
   return verification;
@@ -333,11 +333,11 @@ const combinePageResponses = (pages) => {
       totalPages: pages.length,
       totalResults: combinedResult.results?.length || 0,
       combinedFields: Object.keys(combinedResult)
-    });
+    }, { level: 'info' });
 
     return combinedResult;
   } catch (error) {
-    prettyLog('Error combining pages', { error: error.message });
+    prettyLog('Error combining pages', { error: error.message }, { level: 'error' });
     throw new Error(`Failed to combine page responses: ${error.message}`);
   }
 };
@@ -357,7 +357,7 @@ const handleStreamingIDPResponse = async (response) => {
     prettyLog('Starting to process streaming response', {
       contentType: response.headers.get('content-type'),
       transferEncoding: response.headers.get('transfer-encoding')
-    });
+    }, { level: 'info' });
 
     // Extended timeouts for multi-page documents
     const ACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes total
@@ -384,7 +384,7 @@ const handleStreamingIDPResponse = async (response) => {
             totalPages: pages.length,
             totalBytes: totalBytesReceived,
             processingTimeMs: Date.now() - startTime
-          });
+          }, { level: 'info' });
           break;
         }
 
@@ -426,13 +426,13 @@ const handleStreamingIDPResponse = async (response) => {
                 totalBytesReceived,
                 hasResults: !!pageData.results,
                 resultsCount: pageData.results?.length || 0
-              });
+              }, { level: 'info' });
             } catch (parseError) {
               prettyLog('Failed to parse JSON chunk', {
                 error: parseError.message,
                 chunkPreview: jsonString.substring(0, 200) + '...',
                 chunkLength: jsonString.length
-              });
+              }, { level: 'warn' });
             }
             jsonStartIndex = jsonEnd + 1;
           }
@@ -446,7 +446,7 @@ const handleStreamingIDPResponse = async (response) => {
               lastActivity: new Date(lastActivityTime).toISOString(),
               pagesReceived: pages.length,
               totalTimeMs: Date.now() - startTime
-            });
+            }, { level: 'warn' });
             break;
           }
         }
@@ -459,7 +459,7 @@ const handleStreamingIDPResponse = async (response) => {
           pagesReceivedSoFar: pages.length,
           bytesReceivedSoFar: totalBytesReceived,
           timeSinceLastActivity: Date.now() - lastActivityTime
-        });
+        }, { level: 'warn' });
 
         // Handle timeouts more gracefully
         if (chunkError.message.includes('timeout')) {
@@ -467,7 +467,7 @@ const handleStreamingIDPResponse = async (response) => {
             prettyLog('Chunk timeout but continuing due to partial data', {
               pagesReceived: pages.length,
               consecutiveTimeouts
-            });
+            }, { level: 'warn' });
 
             await new Promise(resolve => setTimeout(resolve, 1000));
             continue;
@@ -475,7 +475,7 @@ const handleStreamingIDPResponse = async (response) => {
             prettyLog('Multiple timeouts, proceeding with partial data', {
               pagesReceived: pages.length,
               consecutiveTimeouts
-            });
+            }, { level: 'warn' });
             break;
           }
         }
@@ -494,7 +494,7 @@ const handleStreamingIDPResponse = async (response) => {
       error: error.message,
       errorType: error.constructor.name,
       pagesReceived: pages.length
-    });
+    }, { level: 'error' });
 
     // If we have some pages, return partial data
     if (pages.length > 0) {
@@ -507,7 +507,7 @@ const handleStreamingIDPResponse = async (response) => {
       try {
         await reader.cancel();
       } catch (cancelError) {
-        prettyLog('Error canceling reader', { error: cancelError.message });
+        prettyLog('Error canceling reader', { error: cancelError.message }, { level: 'error' });
       }
     }
   }
@@ -515,7 +515,8 @@ const handleStreamingIDPResponse = async (response) => {
 
 // Test endpoint
 router.get('/test', (req, res) => {
-  prettyLog('Test endpoint accessed');
+  console.info('[MedicalProcessing][Test] Test endpoint accessed');
+  prettyLog('Test endpoint accessed successfully', { level: 'info' });
   res.json({
     message: 'Medical processing routes are working!',
     timestamp: new Date().toISOString(),
@@ -533,7 +534,8 @@ router.get('/test', (req, res) => {
 // Database connection test
 router.get('/test-database-connection', async (req, res) => {
   try {
-    prettyLog('Testing database connection and data availability');
+    console.info('[MedicalProcessing][DBTest] Testing database connection and data availability');
+    prettyLog('Testing database connection and data availability', { level: 'info' });
 
     const connectionTest = await pool.query('SELECT NOW() as current_time');
     const proposerCount = await pool.query('SELECT COUNT(*) as count FROM Proposer');
@@ -560,7 +562,8 @@ router.get('/test-database-connection', async (req, res) => {
       sample_data: sampleData.rows
     };
 
-    prettyLog('Database test completed', testResults);
+    console.debug('[MedicalProcessing][DBTest] Database test completed successfully:', testResults);
+    prettyLog('Database test completed successfully', testResults, { level: 'info' });
 
     res.json({
       success: true,
@@ -568,7 +571,8 @@ router.get('/test-database-connection', async (req, res) => {
     });
 
   } catch (error) {
-    prettyLog('Database test failed', { error: error.message });
+    console.error('[MedicalProcessing][DBTest] Database test failed:', error.message);
+    prettyLog('Database test failed', { error: error.message }, { level: 'error' });
 
     res.status(500).json({
       success: false,
@@ -582,7 +586,8 @@ router.get('/test-database-connection', async (req, res) => {
 router.get('/proposer-health-metrics/:proposer_id?', async (req, res) => {
   const { proposer_id } = req.params;
 
-  prettyLog('Fetching proposer health metrics', { proposer_id });
+  console.info('[MedicalProcessing][HealthMetrics] Fetching proposer health metrics:', proposer_id);
+  prettyLog('Fetching proposer health metrics', { proposer_id }, { level: 'info' });
 
   try {
     let query = `
@@ -613,7 +618,8 @@ router.get('/proposer-health-metrics/:proposer_id?', async (req, res) => {
     const result = await pool.query(query, params);
 
     if (result.rows.length === 0) {
-      prettyLog('No proposer health metrics found', { proposer_id });
+      console.warn('[MedicalProcessing][HealthMetrics] No proposer health metrics found:', proposer_id);
+      prettyLog('No proposer health metrics found', { proposer_id }, { level: 'warn' });
       return res.status(404).json({
         error: 'No proposer data found',
         success: false,
@@ -678,14 +684,17 @@ router.get('/proposer-health-metrics/:proposer_id?', async (req, res) => {
       message: `Found health metrics for ${responseData.length} proposer(s)`
     };
 
+    console.debug('[MedicalProcessing][HealthMetrics] Health metrics retrieved successfully:', { proposer_id, totalProposers: responseData.length });
+    prettyLog('Health metrics retrieved successfully', { proposer_id, totalProposers: responseData.length }, { level: 'info' });
     res.json(response);
 
   } catch (error) {
+    console.error('[MedicalProcessing][HealthMetrics] Error fetching proposer health metrics:', error.message);
     prettyLog('Error fetching proposer health metrics', {
       error: error.message,
       stack: error.stack,
       proposer_id
-    });
+    }, { level: 'error' });
 
     res.status(500).json({
       error: 'Failed to fetch proposer health metrics',
@@ -700,7 +709,7 @@ router.get('/proposer-health-metrics/:proposer_id?', async (req, res) => {
 router.get('/medical-documents/:proposer_id', async (req, res) => {
   const { proposer_id } = req.params;
 
-  prettyLog('Fetching medical documents for proposer', { proposer_id });
+  prettyLog('Fetching medical documents for proposer', { proposer_id }, { level: 'info' });
 
   try {
     // Validate proposer_id
@@ -748,7 +757,7 @@ router.get('/medical-documents/:proposer_id', async (req, res) => {
     const result = await pool.query(documentsQuery, [proposer_id]);
 
     if (result.rows.length === 0) {
-      prettyLog('No medical documents found for proposer', { proposer_id });
+      prettyLog('No medical documents found for proposer', { proposer_id }, { level: 'warn' });
       return res.json({
         success: true,
         data: {
@@ -819,7 +828,7 @@ router.get('/medical-documents/:proposer_id', async (req, res) => {
       proposer_id,
       total_documents: documents.length,
       members_count: Object.keys(documentsByMember).length
-    });
+    }, { level: 'info' });
 
     res.json(response);
 
@@ -828,7 +837,7 @@ router.get('/medical-documents/:proposer_id', async (req, res) => {
       proposer_id,
       error: error.message,
       stack: error.stack
-    });
+    }, { level: 'error' });
 
     res.status(500).json({
       error: 'Failed to fetch medical documents',
@@ -842,7 +851,7 @@ router.get('/medical-documents/:proposer_id', async (req, res) => {
 router.get('/document-details/:document_id', async (req, res) => {
   const { document_id } = req.params;
 
-  prettyLog('Fetching detailed document information', { document_id });
+  prettyLog('Fetching detailed document information', { document_id }, { level: 'info' });
 
   try {
     if (!document_id || isNaN(document_id)) {
@@ -882,7 +891,7 @@ router.get('/document-details/:document_id', async (req, res) => {
       try {
         extractedData = JSON.parse(document.extracted_data);
       } catch (parseError) {
-        prettyLog('Error parsing extracted data', { document_id, error: parseError.message });
+        prettyLog('Error parsing extracted data', { document_id, error: parseError.message }, { level: 'warn' });
       }
     }
 
@@ -907,7 +916,7 @@ router.get('/document-details/:document_id', async (req, res) => {
     prettyLog('Successfully retrieved document details', {
       document_id,
       has_extracted_data: !!extractedData
-    });
+    }, { level: 'info' });
 
     res.json(response);
 
@@ -915,7 +924,7 @@ router.get('/document-details/:document_id', async (req, res) => {
     prettyLog('Error fetching document details', {
       document_id,
       error: error.message
-    });
+    }, { level: 'error' });
 
     res.status(500).json({
       error: 'Failed to fetch document details',
@@ -935,16 +944,16 @@ router.post('/extract-document/:document_id', async (req, res) => {
     proposer_id,
     member_id,
     proposal_number
-  });
+  }, { level: 'info' });
 
   // Validate inputs
   if (!document_id) {
-    prettyLog('Missing document_id', { document_id });
+    prettyLog('Missing document_id', { document_id }, { level: 'warn' });
     return res.status(400).json({ error: 'Document ID is required', success: false });
   }
 
   if (!proposer_id) {
-    prettyLog('Missing proposer_id', { document_id, proposer_id });
+    prettyLog('Missing proposer_id', { document_id, proposer_id }, { level: 'warn' });
     return res.status(400).json({ error: 'Proposer ID is required', success: false });
   }
 
@@ -958,7 +967,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
     const documentResult = await pool.query(documentQuery, [document_id]);
 
     if (documentResult.rows.length === 0) {
-      prettyLog('Document not found for extraction', { document_id });
+      prettyLog('Document not found for extraction', { document_id }, { level: 'warn' });
       return res.status(404).json({ error: `Document with ID ${document_id} not found`, success: false });
     }
 
@@ -966,7 +975,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
     const s3_url = documentData.source_url;
 
     if (!s3_url) {
-      prettyLog('No S3 URL found for document', { document_id });
+      prettyLog('No S3 URL found for document', { document_id }, { level: 'warn' });
       return res.status(400).json({ error: 'No S3 URL found for this document', success: false });
     }
 
@@ -974,11 +983,11 @@ router.post('/extract-document/:document_id', async (req, res) => {
       document_id,
       document_type: documentData.document_type,
       s3_url
-    });
+    }, { level: 'info' });
 
     const apiKey = process.env.IDP_API_KEY;
     if (!apiKey) {
-      prettyLog('Missing IDP API key', { document_id });
+      prettyLog('Missing IDP API key', { document_id }, { level: 'warn' });
       throw new Error('IDP API key not configured');
     }
 
@@ -1012,7 +1021,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
           status: idpResponse.status,
           statusText: idpResponse.statusText,
           errorBody: errorText.substring(0, 500)
-        });
+        }, { level: 'warn' });
         throw new Error(`IDP API error: ${idpResponse.status} ${idpResponse.statusText}`);
       }
 
@@ -1020,10 +1029,10 @@ router.post('/extract-document/:document_id', async (req, res) => {
       const transferEncoding = idpResponse.headers.get('transfer-encoding');
 
       if (transferEncoding === 'chunked' || contentType?.includes('jsonl') || contentType?.includes('stream')) {
-        prettyLog('Processing streaming response for multi-page document', { document_id });
+        prettyLog('Processing streaming response for multi-page document', { document_id }, { level: 'info' });
         extractedData = await handleStreamingIDPResponse(idpResponse);
       } else {
-        prettyLog('Processing regular JSON response', { document_id });
+        prettyLog('Processing regular JSON response', { document_id }, { level: 'info' });
         const responseText = await idpResponse.text();
 
         if (!responseText || responseText.trim() === '') {
@@ -1032,7 +1041,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
 
         try {
           extractedData = JSON.parse(responseText);
-          prettyLog('Successfully parsed regular JSON response', { document_id });
+          prettyLog('Successfully parsed regular JSON response', { document_id }, { level: 'info' });
         } catch (parseError) {
           throw new Error(`IDP API returned invalid JSON: ${parseError.message}`);
         }
@@ -1048,7 +1057,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
         error: fetchError.message,
         errorName: fetchError.name,
         errorType: fetchError.constructor.name
-      });
+      }, { level: 'error' });
       if (fetchError.name === 'AbortError') {
         throw new Error('IDP API request timed out - document processing took too long');
       }
@@ -1066,7 +1075,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
       const proposerResult = await pool.query(proposerQuery, [proposer_id]);
 
       if (proposerResult.rows.length === 0) {
-        prettyLog('Proposer not found', { document_id, proposer_id });
+        prettyLog('Proposer not found', { document_id, proposer_id }, { level: 'warn' });
         return res.status(404).json({ error: `Proposer with ID ${proposer_id} not found`, success: false });
       }
 
@@ -1075,13 +1084,13 @@ router.post('/extract-document/:document_id', async (req, res) => {
         document_id,
         proposer_id,
         customer_name: proposerData.customer_name
-      });
+      }, { level: 'info' });
     } catch (proposerError) {
       prettyLog('Proposer query failed', {
         document_id,
         proposer_id,
         error: proposerError.message
-      });
+      }, { level: 'error' });
       throw new Error(`Failed to fetch proposer data: ${proposerError.message}`);
     }
 
@@ -1095,16 +1104,16 @@ router.post('/extract-document/:document_id', async (req, res) => {
           proposer_id,
           confidence: identityVerification.confidence,
           issues: identityVerification.issues.length
-        });
+        }, { level: 'info' });
       } else {
-        prettyLog('Skipping identity verification - no patient info in extracted data', { document_id });
+        prettyLog('Skipping identity verification - no patient info in extracted data', { document_id }, { level: 'warn' });
       }
     } catch (verificationError) {
       prettyLog('Identity verification failed safely', {
         document_id,
         proposer_id,
         error: verificationError.message
-      });
+      }, { level: 'warn' });
       // Continue without failing the entire request
     }
 
@@ -1118,7 +1127,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
         outOfRangeCount: rangeAnalysis.outOfRangeParams.length,
         normalRangeOnly: true,
         totalPagesProcessed: extractedData.total_pages || 1
-      });
+      }, { level: 'info' });
     }
 
     // Update document with extracted data
@@ -1161,7 +1170,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
       hasIdentityVerification: !!identityVerification,
       outOfRangeCount: rangeAnalysis ? rangeAnalysis.outOfRangeParams.length : 0,
       totalResultsExtracted: extractedData.results?.length || 0
-    });
+    }, { level: 'info' });
 
     res.json(response);
 
@@ -1171,7 +1180,7 @@ router.post('/extract-document/:document_id', async (req, res) => {
       proposer_id,
       error: error.message,
       errorType: error.constructor.name
-    });
+    }, { level: 'error' });
 
     let errorMessage = 'Failed to extract document data';
     let httpStatus = 500;

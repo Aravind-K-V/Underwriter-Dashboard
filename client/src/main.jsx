@@ -10,6 +10,9 @@ import './index.css';
 // Import the root App component
 import App from './App.jsx';
 
+// Log application startup
+console.info('[App][Startup] React application initializing');
+
 // Render the application into the DOM
 createRoot(document.getElementById('root')).render(
   // Wrap the App component in StrictMode for enhanced development warnings
@@ -17,3 +20,5 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>
 );
+
+console.info('[App][Startup] React application rendered successfully');

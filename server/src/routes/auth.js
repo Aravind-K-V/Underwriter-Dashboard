@@ -10,10 +10,12 @@ const router = express.Router();
 // Validate Reset Token Endpoint (Unchanged)
 router.get('/validate-reset-token', async (req, res) => {
   const { token, email_id } = req.query;
-  prettyLog('Validate reset token request', { email_id, token: token ? 'provided' : 'missing' });
+  console.info('[Auth][ValidateToken] Validate reset token request received:', { email_id, hasToken: !!token });
+  prettyLog('Validate reset token request received', { email_id, hasToken: !!token }, { level: 'info' });
   
   if (!email_id || !token) {
-    prettyLog('Validation failed - missing parameters', { email_id, token: !!token });
+    console.warn('[Auth][ValidateToken] Validation failed - missing parameters:', { email_id, hasToken: !!token });
+    prettyLog('Validation failed - missing parameters', { email_id, hasToken: !!token }, { level: 'warn' });
     return res.status(400).json({ success: false, message: 'Email and token are required' });
   }
 
@@ -23,21 +25,25 @@ router.get('/validate-reset-token', async (req, res) => {
       [email_id, token]
     );
     
+    console.debug('[Auth][ValidateToken] Token validation query result:', { found: result.rows.length > 0, email_id, rowCount: result.rows.length });
     prettyLog('Token validation query result', {
       found: result.rows.length > 0,
       email_id,
       rowCount: result.rows.length
-    });
+    }, { level: 'debug' });
     
     if (result.rows.length === 0) {
-      prettyLog('No valid token found', { email_id });
+      console.warn('[Auth][ValidateToken] No valid token found:', email_id);
+      prettyLog('No valid token found', { email_id }, { level: 'warn' });
       return res.status(400).json({ success: false, message: 'Password is already changed' });
     }
 
-    prettyLog('Token validation successful', { email_id });
+    console.info('[Auth][ValidateToken] Token validation successful:', email_id);
+    prettyLog('Token validation successful', { email_id }, { level: 'info' });
     res.status(200).json({ success: true, message: 'Token is valid' });
   } catch (error) {
-    prettyLog('Validate reset token error', { error: error.message, email_id });
+    console.error('[Auth][ValidateToken] Validate reset token error:', error.message);
+    prettyLog('Validate reset token error', { error: error.message, email_id }, { level: 'error' });
     res.status(500).json({ success: false, message: 'Server error', details: error.message });
   }
 });
@@ -45,16 +51,19 @@ router.get('/validate-reset-token', async (req, res) => {
 // Forgot Password Endpoint (Unchanged)
 router.post('/forgot-password', async (req, res) => {
   const { email_id } = req.body;
-  prettyLog('Forgot password request', { email_id });
+  console.info('[Auth][ForgotPassword] Forgot password request received:', email_id);
+  prettyLog('Forgot password request received', { email_id }, { level: 'info' });
   
   if (!email_id) {
-    prettyLog('Forgot password failed - missing email');
+    console.warn('[Auth][ForgotPassword] Forgot password failed - missing email');
+    prettyLog('Forgot password failed - missing email', { email_id }, { level: 'warn' });
     return res.status(400).json({ success: false, message: 'Email is required' });
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email_id)) {
-    prettyLog('Invalid email format provided', { email_id });
+    console.warn('[Auth][ForgotPassword] Invalid email format provided:', email_id);
+    prettyLog('Invalid email format provided', { email_id }, { level: 'warn' });
     return res.status(400).json({ success: false, message: 'Invalid email format' });
   }
 
@@ -66,35 +75,39 @@ router.post('/forgot-password', async (req, res) => {
       [email_id, 'underwriter', 'approved']
     );
     
+    console.debug('[Auth][ForgotPassword] User verification result:', { email_id, found: userCheck.rows.length > 0, userCount: userCheck.rows.length });
     prettyLog('User verification result', { 
       email_id, 
       found: userCheck.rows.length > 0,
       userCount: userCheck.rows.length 
-    });
+    }, { level: 'debug' });
 
     if (userCheck.rows.length === 0) {
       await pool.query('ROLLBACK');
-      prettyLog('No approved underwriter found', { email_id });
+      console.warn('[Auth][ForgotPassword] No approved underwriter found:', email_id);
+      prettyLog('No approved underwriter found', { email_id }, { level: 'warn' });
       return res.status(404).json({ success: false, message: 'No approved underwriter found with this email' });
     }
 
     const resetToken = uuidv4();
     const expiresAt = new Date(Date.now() + 3600 * 1000);
     
+    console.info('[Auth][ForgotPassword] Generated reset token:', { email_id, tokenGenerated: true, expiresAt: expiresAt.toISOString() });
     prettyLog('Generated reset token', { 
       email_id, 
       tokenGenerated: true,
       expiresAt: expiresAt.toISOString()
-    });
+    }, { level: 'info' });
 
     await pool.query(
       'INSERT INTO password_reset_tokens (email_id, token, expires_at) VALUES ($1, $2, $3) ON CONFLICT (email_id, token) DO UPDATE SET expires_at = $3 RETURNING *',
       [email_id, resetToken, expiresAt]
     );
     
-    prettyLog('Reset token stored successfully', { email_id });
+    console.info('[Auth][ForgotPassword] Reset token stored successfully:', email_id);
+    prettyLog('Reset token stored successfully', { email_id }, { level: 'info' });
 
-    const resetLink = `http://13.232.45.218:5173/reset-password?token=${resetToken}&email_id=${encodeURIComponent(email_id)}`;
+    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}&email_id=${encodeURIComponent(email_id)}`;
     let emailError = null;
     
     try {
@@ -111,24 +124,32 @@ router.post('/forgot-password', async (req, res) => {
           <p>Best regards,<br>Kazunov 1AI Team</p>
         `,
       });
-      prettyLog('Password reset email sent successfully', { email_id });
+      console.info('[Auth][ForgotPassword] Password reset email sent successfully:', email_id);
+      prettyLog('Password reset email sent successfully', { email_id }, { level: 'info' });
     } catch (err) {
-      prettyLog('Failed to send reset email', { email_id, error: err.message });
+      console.error('[Auth][ForgotPassword] Failed to send reset email:', err.message);
+      prettyLog('Failed to send reset email', { email_id, error: err.message }, { level: 'error' });
       emailError = err.message;
     }
 
     await pool.query('COMMIT');
     
     if (emailError) {
+      console.warn('[Auth][ForgotPassword] Password reset link generated but email failed:', { email_id, error: emailError });
+      prettyLog('Password reset link generated but email failed', { email_id, error: emailError }, { level: 'warn' });
       return res.status(200).json({
         success: true,
         message: `Password reset link generated, but failed to send email: ${emailError}. Use this link to reset: ${resetLink}`,
       });
     }
+    
+    console.info('[Auth][ForgotPassword] Password reset process completed successfully:', email_id);
+    prettyLog('Password reset process completed successfully', { email_id }, { level: 'info' });
     res.status(200).json({ success: true, message: 'Password reset link sent to your email' });
   } catch (error) {
     await pool.query('ROLLBACK');
-    prettyLog('Forgot password operation failed', { email_id, error: error.message });
+    console.error('[Auth][ForgotPassword] Forgot password operation failed:', error.message);
+    prettyLog('Forgot password operation failed', { email_id, error: error.message }, { level: 'error' });
     res.status(500).json({ success: false, message: 'Server error', details: error.message });
   }
 });
@@ -204,7 +225,7 @@ router.post('/reset-password', async (req, res) => {
         html: `
           <p>Dear Underwriter,</p>
           <p>Your password for your Kazunov 1AI account has been successfully reset.</p>
-          <p>You can now log in with your new password at <a href="http://13.232.45.218:5173/login">Kazunov 1AI</a>.</p>
+          <p>You can now log in with your new password at <a href="http://localhost:5173/login">Kazunov 1AI</a>.</p>
           <p>If you did not initiate this change, please contact support immediately.</p>
           <p>Best regards,<br>Kazunov 1AI Team</p>
         `,
@@ -330,7 +351,7 @@ router.post('/register', async (req, res) => {
     if (smtpVerified) {
       for (let i = 0; i < validAdmins.length; i++) {
         const admin = validAdmins[i];
-        const approvalLink = `http://13.232.45.218:5000/api/approve?token=${approvalTokens[admin.email_id]}&email_id=${encodeURIComponent(email_id)}`;
+        const approvalLink = `http://localhost:5000/api/approve?token=${approvalTokens[admin.email_id]}&email_id=${encodeURIComponent(email_id)}`;
         
         try {
           await transporter.sendMail({
@@ -447,7 +468,7 @@ router.get('/approve', async (req, res) => {
         subject: 'Registration Approved',
         html: `
           <p>Dear ${pendingUser.name},</p>
-          <p>Your registration has been approved! You can now log in at <a href="http://13.232.45.218:5173/login">Kazunov 1AI</a>.</p>
+          <p>Your registration has been approved! You can now log in at <a href="http://localhost:5173/login">Kazunov 1AI</a>.</p>
         `,
       });
       prettyLog('Approval confirmation email sent', { email_id });
@@ -474,10 +495,12 @@ router.get('/approve', async (req, res) => {
 // Login Endpoint (Updated)
 router.post('/login', async (req, res) => {
   const { email_id, password } = req.body;
-  prettyLog('Login attempt', { email_id, hasPassword: !!password });
+  console.info('[Auth][Login] Login attempt received:', { email_id, hasPassword: !!password });
+  prettyLog('Login attempt received', { email_id, hasPassword: !!password }, { level: 'info' });
   
   if (!email_id || !password) {
-    prettyLog('Login failed - missing credentials');
+    console.warn('[Auth][Login] Login failed - missing credentials');
+    prettyLog('Login failed - missing credentials', { email_id }, { level: 'warn' });
     return res.status(400).json({ success: false, message: 'Email and password are required' });
   }
 
@@ -487,38 +510,44 @@ router.post('/login', async (req, res) => {
       [email_id]
     );
     
+    console.debug('[Auth][Login] User lookup for login:', { email_id, userFound: result.rows.length > 0 });
     prettyLog('User lookup for login', { 
       email_id, 
       userFound: result.rows.length > 0 
-    });
+    }, { level: 'debug' });
 
     if (result.rows.length === 0) {
-      prettyLog('Login failed - user not found', { email_id });
+      console.warn('[Auth][Login] Login failed - user not found:', email_id);
+      prettyLog('Login failed - user not found', { email_id }, { level: 'warn' });
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
     const user = result.rows[0];
+    console.debug('[Auth][Login] User details retrieved:', { email_id: user.email_id, name: user.name, role: user.role, status: user.status });
     prettyLog('User details retrieved', {
       email_id: user.email_id,
       name: user.name,
       role: user.role,
       status: user.status
-    });
+    }, { level: 'debug' });
 
     const isMatch = await bcrypt.compare(password, user.password);
-    prettyLog('Password verification result', { email_id, passwordMatch: isMatch });
+    console.debug('[Auth][Login] Password verification result:', { email_id, passwordMatch: isMatch });
+    prettyLog('Password verification result', { email_id, passwordMatch: isMatch }, { level: 'debug' });
 
     if (!isMatch) {
-      prettyLog('Login failed - incorrect password', { email_id });
+      console.warn('[Auth][Login] Login failed - incorrect password:', email_id);
+      prettyLog('Login failed - incorrect password', { email_id }, { level: 'warn' });
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
     if (user.role !== 'underwriter' || user.status !== 'approved') {
+      console.warn('[Auth][Login] Login failed - access denied:', { email_id, role: user.role, status: user.status });
       prettyLog('Login failed - access denied', { 
         email_id, 
         role: user.role, 
         status: user.status 
-      });
+      }, { level: 'warn' });
       return res.status(403).json({ success: false, message: 'Access denied: Only approved underwriters are allowed' });
     }
 
@@ -530,7 +559,8 @@ router.post('/login', async (req, res) => {
       created_date: user.created_date
     };
 
-    prettyLog('Login successful', userDetails);
+    console.info('[Auth][Login] Login successful:', { email_id, name: user.name, role: user.role });
+    prettyLog('Login successful', { email_id, name: user.name, role: user.role }, { level: 'info' });
     
     res.status(200).json({ 
       success: true, 
@@ -538,10 +568,11 @@ router.post('/login', async (req, res) => {
       user: userDetails 
     });
   } catch (error) {
+    console.error('[Auth][Login] Login operation failed:', error.message);
     prettyLog('Login operation failed', { 
       email_id, 
       error: error.message 
-    });
+    }, { level: 'error' });
     res.status(500).json({ success: false, message: 'Server error', details: error.message });
   }
 });

@@ -47,39 +47,43 @@ const RightSectionReset = () => {
 
   // Validate token and query parameters on component mount
   useEffect(() => {
+    console.info('[Auth][RightSectionReset] Component mounted, validating reset token');
+    
     const { token, email_id } = getQueryParams();
-    console.log('RightSectionReset mounted', { token, email_id });
 
     if (!token || !email_id) {
-      console.error('Missing token or email_id in URL');
-      setErrorMsg('Invalid or missing reset link. Please request a new link.');
+      console.error('[Auth][RightSectionReset] Missing required parameters:', { hasToken: !!token, hasEmail: !!email_id });
+      setErrorMsg('Invalid reset link. Please request a new password reset.');
       setIsTokenValid(false);
       return;
     }
 
-    // Validate email format
     if (!validateEmail(email_id)) {
-      console.error('Invalid email format in URL');
-      setErrorMsg('Invalid email format in reset link. Please request a new link.');
+      console.error('[Auth][RightSectionReset] Invalid email format in URL:', email_id);
+      setErrorMsg('Invalid email format in reset link.');
       setIsTokenValid(false);
       return;
     }
 
     const validateToken = async () => {
       try {
-        console.log('Calling /api/validate-reset-token with:', { token, email_id });
-        const response = await axios.get('http://13.232.45.218:5000/api/validate-reset-token', {
+        console.info('[Auth][RightSectionReset] Validating reset token for email:', email_id);
+        const response = await axios.get('http://localhost:5000/api/validate-reset-token', {
           params: { token, email_id },
         });
-        console.log('Validate token response:', response.data);
+
+        console.debug('[Auth][RightSectionReset] Token validation response received:', { success: response.data.success });
+        
         if (response.data.success) {
+          console.info('[Auth][RightSectionReset] Token validation successful');
           setIsTokenValid(true);
         } else {
+          console.warn('[Auth][RightSectionReset] Token validation failed:', response.data.message);
           setErrorMsg(response.data.message || 'Password already changed');
           setIsTokenValid(false);
         }
       } catch (error) {
-        console.error('Token validation error:', error.message, error.response?.data);
+        console.error('[Auth][RightSectionReset] Token validation error:', error.message, error.response?.data);
         setErrorMsg(error.response?.data?.message || 'Failed to validate reset link');
         setIsTokenValid(false);
       }
@@ -122,33 +126,35 @@ const RightSectionReset = () => {
     }
 
     try {
-      console.log('Submitting reset password:', { token, email_id, newPassword });
-      const res = await axios.post('http://13.232.45.218:5000/api/reset-password', {
+      console.info('[Auth][RightSectionReset] Submitting password reset request');
+      const res = await axios.post('http://localhost:5000/api/reset-password', {
         token,
         email_id, // Match backend expected field name
         new_password: newPassword, // Match backend expected field name
       });
 
       if (res.data.success) {
+        console.info('[Auth][RightSectionReset] Password reset successful, redirecting to login');
         setResetSuccess(true); // Indicate successful reset
         setErrorMsg(''); // Clear error message
         setTimeout(() => {
-          console.log('Redirecting to /login');
+          console.info('[Auth][RightSectionReset] Redirecting to login page');
           navigate('/login');
         }, 2000); // Navigate to login page after 2 seconds
       } else {
+        console.warn('[Auth][RightSectionReset] Password reset failed:', res.data.message);
         setErrorMsg(res.data.message || 'Failed to reset password'); // Display server error
       }
     } catch (err) {
       // Handle network or server errors
-      console.error('Reset password error:', err.message, err.response?.data);
+      console.error('[Auth][RightSectionReset] Password reset error:', err.message, err.response?.data);
       setErrorMsg(err.response?.data?.message || 'Error resetting password');
     }
   };
 
   // Show loading state while validating token
   if (isTokenValid === null) {
-    console.log('Rendering loading state');
+    console.debug('[Auth][RightSectionReset] Rendering loading state');
     return (
       <>
         {/* Error Popup */}
@@ -178,7 +184,7 @@ const RightSectionReset = () => {
 
   // Show error message for invalid/used token
   if (!isTokenValid) {
-    console.log('Rendering invalid token state', { errorMsg });
+    console.debug('[Auth][RightSectionReset] Rendering invalid token state');
     return (
       <>
         {/* Error Popup */}
@@ -221,7 +227,7 @@ const RightSectionReset = () => {
   }
 
   // Show password form for valid token
-  console.log('Rendering password form');
+  console.debug('[Auth][RightSectionReset] Rendering password form');
   return (
     <>
       {/* Error Popup */}

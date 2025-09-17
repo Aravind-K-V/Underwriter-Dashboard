@@ -3,6 +3,8 @@
 
 // Import routing components from react-router-dom
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// Import React hooks for logging
+import React, { useEffect } from "react";
 // Import custom components for the password reset page
 import RightSectionReset from "../components/login-screen/RightSectionReset";
 import Layout from "../components/login-screen/Layout";
@@ -10,6 +12,15 @@ import LoginHeader from "../components/login-screen/LoginHeader";
 
 // Define the Reset component
 const Reset = () => {
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[Pages][ResetPasswordScreen] Reset password screen mounted');
+    
+    return () => {
+      console.debug('[Pages][ResetPasswordScreen] Reset password screen unmounting');
+    };
+  }, []);
+
   return (
     // Render the password reset page using the reusable Layout component
     <Layout

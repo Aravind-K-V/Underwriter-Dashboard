@@ -44,7 +44,7 @@ export function comparePANNumbers(extractedPAN, dbPAN) {
   const normalizedExtracted = extractedPAN.toString().replace(/\s+/g, '').toUpperCase();
   const normalizedDB = dbPAN.toString().replace(/\s+/g, '').toUpperCase();
   
-  console.log('PAN comparison debug:', {
+  console.debug('[StringUtils][PAN] PAN comparison debug:', {
     original_extracted: extractedPAN,
     original_db: dbPAN,
     normalized_extracted: normalizedExtracted,
@@ -55,7 +55,7 @@ export function comparePANNumbers(extractedPAN, dbPAN) {
   const extractedValid = panPattern.test(normalizedExtracted);
   const dbValid = panPattern.test(normalizedDB);
 
-  console.log('PAN format validation:', {
+  console.debug('[StringUtils][PAN] PAN format validation:', {
     extracted_valid: extractedValid,
     db_valid: dbValid,
     extracted_length: normalizedExtracted.length,

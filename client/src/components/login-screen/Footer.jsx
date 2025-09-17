@@ -2,10 +2,29 @@
 // A React component that renders the footer for the Underwriter Dashboard, displaying branding and legal text with a company logo.
 
 // Import required dependency
-import React from 'react';
+import React, { useEffect } from 'react';
 
 // Define the Footer component
 const Footer = () => {
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[UI][Footer] Footer component mounted');
+    
+    return () => {
+      console.debug('[UI][Footer] Footer component unmounting');
+    };
+  }, []);
+
+  // Handle company logo load event
+  const handleLogoLoad = () => {
+    console.debug('[UI][Footer] Company logo loaded successfully');
+  };
+
+  // Handle company logo error event
+  const handleLogoError = () => {
+    console.error('[UI][Footer] Company logo failed to load');
+  };
+
   return (
     // Main footer container with a fixed width of 800px and precise right padding
     // Note: Comment indicates a change back to w-[668px], but code uses w-[800px]
@@ -46,6 +65,8 @@ const Footer = () => {
               src="../src/assets/login-icons/company logo.svg"
               alt="Footer Logo"
               className="w-[90px] h-auto object-contain" // Logo sized to 90px width, maintaining aspect ratio
+              onLoad={handleLogoLoad}
+              onError={handleLogoError}
             />
           </div>
         </div>

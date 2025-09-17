@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useMediaQuery } from 'react-responsive';
 
 const StatusCards = ({ activeTab, setActiveTab }) => {
-  // ✅ RESPONSIVE: Enhanced responsive breakpoints
+  //  RESPONSIVE: Enhanced responsive breakpoints
   const isLargeDesktop = useMediaQuery({ minWidth: 1440 });
   const isDesktop = useMediaQuery({ minWidth: 1200, maxWidth: 1439 });
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1199 });
@@ -13,6 +13,22 @@ const StatusCards = ({ activeTab, setActiveTab }) => {
   // Combined breakpoints for easier usage
   const isMobileOrSmaller = useMediaQuery({ maxWidth: 767 });
 
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[UI][DashboardTabsSection] Component mounted');
+  }, []);
+
+  // Log when activeTab changes
+  useEffect(() => {
+    console.debug('[UI][DashboardTabsSection] Active tab changed:', activeTab);
+  }, [activeTab]);
+
+  // Handle tab click
+  const handleTabClick = (status) => {
+    console.info('[UI][DashboardTabsSection] Tab clicked:', { from: activeTab, to: status });
+    setActiveTab(status);
+  };
+
   // Updated array to include "All Applications" tab
   const statusItems = [
     'All Applications',
@@ -22,7 +38,7 @@ const StatusCards = ({ activeTab, setActiveTab }) => {
     'Rejected',
   ];
 
-  // ✅ RESPONSIVE: Dynamic gap calculation
+  //  RESPONSIVE: Dynamic gap calculation
   const getGap = () => {
     if (isSmallMobile) return 'gap-2';
     if (isMobile) return 'gap-3';
@@ -31,14 +47,14 @@ const StatusCards = ({ activeTab, setActiveTab }) => {
     return 'gap-7'; // Desktop and up
   };
 
-  // ✅ RESPONSIVE: Dynamic padding calculation
+  //  RESPONSIVE: Dynamic padding calculation
   const getPadding = () => {
     if (isSmallMobile) return 'px-2';
     if (isMobileOrSmaller) return 'px-3';
     return 'px-4';
   };
 
-  // ✅ RESPONSIVE: Dynamic text size and spacing
+  //  RESPONSIVE: Dynamic text size and spacing
   const getTextSize = () => {
     if (isSmallMobile) return 'text-xs';
     if (isMobileOrSmaller) return 'text-sm';
@@ -55,7 +71,7 @@ const StatusCards = ({ activeTab, setActiveTab }) => {
           return (
             <div
               key={status}
-              onClick={() => setActiveTab(status)}
+              onClick={() => handleTabClick(status)}
               className={`flex flex-col justify-end items-center cursor-pointer ${
                 isActive ? 'pb-0' : isMobileOrSmaller ? 'pb-1' : 'pb-2'
               } ${isMobileOrSmaller ? 'min-w-max' : ''}`}
@@ -80,7 +96,7 @@ const StatusCards = ({ activeTab, setActiveTab }) => {
                 }}
                 title={status}
               >
-                {/* ✅ RESPONSIVE: Shortened text for small screens */}
+                {/*  RESPONSIVE: Shortened text for small screens */}
                 {isSmallMobile && status === 'All Applications' 
                   ? 'All' 
                   : isSmallMobile && status === 'Needs Investigation' 

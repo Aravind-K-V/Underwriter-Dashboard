@@ -43,3 +43,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 server/logs
+
+# Virtual environment
+server/src/Rule Engines/venv
+
+# Python bytecode
+server/src/Rule Engines/Finance Score/Rule Engine/__pycache__/
+server/src/Rule Engines/Health Score/Rule Engine/__pycache__/

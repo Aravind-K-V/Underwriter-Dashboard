@@ -18,13 +18,11 @@ import companyLogo from '../../assets/underwriter-dashboard-icons/web-icon.svg';
 import tickIcon from '../../assets/underwriter-dashboard-icons/tick.svg';
 
 // Environment variables with proper fallbacks
-const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://13.232.45.218:8090';
-const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://13.232.45.218:5000';
+const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:8090';
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5000';
 
 // Debug logging for environment variables
-console.log('🔧 Environment Variables:');
-console.log('PYTHON_API_URL:', PYTHON_API_URL);
-console.log('NODE_API_URL:', NODE_API_URL);
+console.debug('[DocumentUpload][FinanceTable] Environment variables loaded:', { pythonApiUrl: PYTHON_API_URL, nodeApiUrl: NODE_API_URL });
 
 // Constants
 const FAMILY = 'PP Neue Montreal, "PP Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif';
@@ -120,6 +118,8 @@ const Pill = ({ text, variant = 'success' }) => (
     </span>
   </div>
 );
+//  ADD THESE STATE VARIABLES:
+
 
 const IconBubble = ({ gradient, iconSrc, alt, size = 44, iconSize = 20 }) => (
   <div style={{
@@ -151,7 +151,7 @@ const formatDocumentName = (doc) => {
   );
 };
 
-// ✅ PURE HELPER FUNCTIONS (Outside Component)
+//  PURE HELPER FUNCTIONS (Outside Component)
 const computeComparison = (extracted, proposer) => {
   // Simple comparison logic - customize as needed
   const comparison_results = {};
@@ -232,7 +232,7 @@ const getMinHeight = (isMobileOrSmaller, isTablet, isDesktop) => {
   }
 };
 
-// ✅ MAIN COMPONENT
+//  MAIN COMPONENT
 const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPresent, reviewFlags }) => {
   const isLargeDesktop = useMediaQuery({ minWidth: 1440 });
   const isDesktop = useMediaQuery({ minWidth: 1200, maxWidth: 1439 });
@@ -270,7 +270,7 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
     fetchInsuranceData();
   }, [proposer_id]);
 
-  // ✅ NEW: Add state for decision processing
+  //  NEW: Add state for decision processing
   const [decisionProcessing, setDecisionProcessing] = useState(false);
   const [currentStatus, setCurrentStatus] = useState('Pending');
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
@@ -285,22 +285,25 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
   const [approvalModalType, setApprovalModalType] = useState(null);
   const [approvalModalStatus, setApprovalModalStatus] = useState('confirm');
   const [approvalModalError, setApprovalModalError] = useState('');
+  const [financeScore, setFinanceScore] = useState(null);
+  const [financeScoreLoading, setFinanceScoreLoading] = useState(false);
+  const [financeScoreError, setFinanceScoreError] = useState(null);
 
-  // ✅ ADD THE MISSING formatCurrency FUNCTION:
+  //  ADD THE MISSING formatCurrency FUNCTION:
   const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return '—';
     return `₹${Number(amount).toLocaleString('en-IN')}`;
   };
 
-  // ✅ MOVE fetchInsuranceData FUNCTION HERE:
+  //  MOVE fetchInsuranceData FUNCTION HERE:
   const fetchInsuranceData = async () => {
     if (!proposer_id) {
-      console.log('[INSURANCE] No proposer_id found');
+      console.debug('[DocumentUpload][FinanceTable] No proposer_id found for insurance data');
       return;
     }
 
     try {
-      console.log('[INSURANCE] Fetching insurance data for proposer_id:', proposer_id);
+      console.info('[DocumentUpload][FinanceTable] Fetching insurance data for proposer_id:', proposer_id);
 
       // Fetch premium from proposer table
       const proposerResponse = await fetch(`${NODE_API_URL}/api/proposers/${proposer_id}/insurance-details`);
@@ -315,9 +318,9 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
       if (proposerResponse.ok) {
         const proposerInsuranceData = await proposerResponse.json();
         premium = proposerInsuranceData.premium_amount;
-        console.log('[INSURANCE] Premium fetched:', premium);
+        console.debug('[DocumentUpload][FinanceTable] Premium fetched:', premium);
       } else {
-        console.warn('[INSURANCE] Failed to fetch premium from proposer table');
+        console.warn('[DocumentUpload][FinanceTable] Failed to fetch premium from proposer table');
       }
 
       // Get sum insured from insured_member table
@@ -325,13 +328,13 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
         const memberData = await memberResponse.json();
         if (Array.isArray(memberData) && memberData.length > 0) {
           sumInsured = memberData[0].sum_insured;
-          console.log('[INSURANCE] Sum insured fetched:', sumInsured);
+          console.debug('[DocumentUpload][FinanceTable] Sum insured fetched:', sumInsured);
         } else if (memberData.sum_insured) {
           sumInsured = memberData.sum_insured;
-          console.log('[INSURANCE] Sum insured fetched:', sumInsured);
+          console.debug('[DocumentUpload][FinanceTable] Sum insured fetched:', sumInsured);
         }
       } else {
-        console.warn('[INSURANCE] Failed to fetch sum insured from insured_member table');
+        console.warn('[DocumentUpload][FinanceTable] Failed to fetch sum insured from insured_member table');
       }
 
       setInsuranceData({
@@ -340,7 +343,7 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
       });
 
     } catch (error) {
-      console.error('[INSURANCE] Error fetching insurance data:', error);
+      console.error('[DocumentUpload][FinanceTable] Error fetching insurance data:', error.message);
       setInsuranceData({
         premium: null,
         sumInsured: null
@@ -348,33 +351,81 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
     }
   };
 
-  // ✅ ADD THIS FUNCTION: Fetch current underwriting request status
+  //  ADD THIS FUNCTION: Fetch finance score (stored or calculate new)
+  const fetchFinanceScore = async () => {
+    if (!proposer_id) {
+      console.debug('[DocumentUpload][FinanceTable] No proposer_id found for finance score');
+      setFinanceScore(null);
+      return;
+    }
+
+    try {
+      setFinanceScoreLoading(true);
+      setFinanceScoreError(null);
+      console.info('[DocumentUpload][FinanceTable] Fetching finance score for proposer_id:', proposer_id);
+
+      // First try to get stored finance score
+      let response = await fetch(`${NODE_API_URL}/api/finance-document-processing/finance-score-stored/${proposer_id}`);
+
+      if (response.ok) {
+        const scoreData = await response.json();
+        console.debug('[DocumentUpload][FinanceTable] Stored finance score fetched successfully:', scoreData);
+        setFinanceScore(scoreData);
+        return;
+      } else if (response.status === 404) {
+        // No stored score found, calculate new one
+        console.info('[DocumentUpload][FinanceTable] No stored score found, calculating new finance score');
+        response = await fetch(`${NODE_API_URL}/api/finance-document-processing/finance-score/${proposer_id}`);
+
+        if (response.ok) {
+          const scoreData = await response.json();
+          console.debug('[DocumentUpload][FinanceTable] New finance score calculated successfully:', scoreData);
+          setFinanceScore(scoreData);
+        } else {
+          const errorText = await response.text();
+          console.error('[DocumentUpload][FinanceTable] Failed to calculate finance score:', response.status, errorText);
+          setFinanceScoreError(`Failed to calculate finance score: ${response.status}`);
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('[DocumentUpload][FinanceTable] Failed to fetch stored finance score:', response.status, errorText);
+        setFinanceScoreError(`Failed to fetch finance score: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('[DocumentUpload][FinanceTable] Error fetching finance score:', error.message);
+      setFinanceScoreError(error.message);
+    } finally {
+      setFinanceScoreLoading(false);
+    }
+  };
+
+  //  ADD THIS FUNCTION: Fetch current underwriting request status
   const fetchCurrentStatus = async () => {
     if (!proposer_id) {
-      console.log('[STATUS] No proposer_id found in URL params');
+      console.debug('[DocumentUpload][FinanceTable] No proposer_id found in URL params');
       setCurrentStatus("");
       return;
     }
 
     try {
-      console.log('[STATUS] Fetching underwriting status for proposer_id:', proposer_id);
+      console.info('[DocumentUpload][FinanceTable] Fetching underwriting status for proposer_id:', proposer_id);
 
       const response = await fetch(`${NODE_API_URL}/api/underwriting/underwriting-status/${proposer_id}`);
 
       if (response.ok) {
         const statusData = await response.json();
-        console.log('[STATUS] Fetched status from underwriting_requests:', statusData);
+        console.debug('[DocumentUpload][FinanceTable] Fetched status from underwriting_requests:', statusData);
 
         // Set the status and message from the database
         setCurrentStatus(statusData.status || "");
         setModalMessage(statusData.message || '');
-        console.log('[STATUS] Current status set to:', statusData.status);
+        console.debug('[DocumentUpload][FinanceTable] Current status set to:', statusData.status);
       } else {
-        console.error('[STATUS] Failed to fetch status:', response.status, response.statusText);
+        console.error('[DocumentUpload][FinanceTable] Failed to fetch status:', response.status, response.statusText);
         setCurrentStatus('NOT RETRIEVED');
       }
     } catch (error) {
-      console.error('[STATUS] Error fetching underwriting status:', error);
+      console.error('[DocumentUpload][FinanceTable] Error fetching underwriting status:', error.message);
       setCurrentStatus('NOT RETRIEVED');
     }
   };
@@ -389,13 +440,13 @@ const DocumentUploadScreenFinanceTable = ({ activeTab, setActiveTab, bothTabsPre
     return 135;
   }, [isSmallMobile, isMobile, isSmallTablet, isTablet, isDesktop]);
 
-const cardGap = useMemo(() => {
-  if (isSmallMobile) return 6;   // Further reduced from 8
-  if (isMobile) return 8;        // Further reduced from 10
-  if (isSmallTablet) return 9;   // Further reduced from 11
-  if (isTablet) return 10;       // Further reduced from 12
-  return 12;                     // Further reduced from 14
-}, [isSmallMobile, isMobile, isSmallTablet, isTablet]);
+  const cardGap = useMemo(() => {
+    if (isSmallMobile) return 6;   // Further reduced from 8
+    if (isMobile) return 8;        // Further reduced from 10
+    if (isSmallTablet) return 9;   // Further reduced from 11
+    if (isTablet) return 10;       // Further reduced from 12
+    return 12;                     // Further reduced from 14
+  }, [isSmallMobile, isMobile, isSmallTablet, isTablet]);
 
   const cardsTotalHeight = useMemo(() => {
     return (cardHeight * 2) + cardGap;
@@ -414,10 +465,10 @@ const cardGap = useMemo(() => {
     return tableHeaderHeight + (singleRowHeight * 3); // Header + 3 rows now
   }, [tableHeaderHeight, isSmallMobile, isMobile, isTablet]);
   // ✅ UPDATED: Calculate insurance table height to match remaining card height
-const insuranceTableHeight = useMemo(() => {
-  const twoFieldsHeight = tableHeaderHeight + (2 * (isSmallMobile ? 44 : isMobile ? 46 : isTablet ? 50 : 52));
-  return Math.max(twoFieldsHeight, cardsTotalHeight - documentsTableHeight - 6);
-}, [cardsTotalHeight, documentsTableHeight, tableHeaderHeight, isSmallMobile, isMobile, isTablet]);
+  const insuranceTableHeight = useMemo(() => {
+    const twoFieldsHeight = tableHeaderHeight + (2 * (isSmallMobile ? 44 : isMobile ? 46 : isTablet ? 50 : 52));
+    return Math.max(twoFieldsHeight, cardsTotalHeight - documentsTableHeight - 6);
+  }, [cardsTotalHeight, documentsTableHeight, tableHeaderHeight, isSmallMobile, isMobile, isTablet]);
   const pagePadding = useMemo(() => {
     if (isSmallMobile) return 8;
     if (isMobile) return 12;
@@ -427,7 +478,7 @@ const insuranceTableHeight = useMemo(() => {
     return 20;
   }, [isSmallMobile, isMobile, isSmallTablet, isTablet, isDesktop]);
 
-  // ✅ ADD THE MISSING FUNCTION HERE (before other helper functions)
+  //  ADD THE MISSING FUNCTION HERE (before other helper functions)
   const areAllDocumentsProcessed = () => {
     // Simple check - return true if all documents have been processed
     return documents.every(doc =>
@@ -437,12 +488,12 @@ const insuranceTableHeight = useMemo(() => {
     );
   };
 
-  // ✅ NEW: Decision handlers
-  // ✅ UPDATED: Approve handler with proper message handling
+  //  NEW: Decision handlers
+  //  UPDATED: Approve handler with proper message handling
   const handleApprove = async (message) => {
     setStatusUpdateLoading(true);
     try {
-      console.log('✅ Approving proposal for proposer:', proposer_id);
+      console.info('[DocumentUpload][FinanceTable] Approving proposal for proposer:', proposer_id);
 
       const response = await fetch(`${NODE_API_URL}/api/underwriting/underwriting-requests/${proposer_id}/status`, {
         method: 'PATCH',
@@ -451,7 +502,7 @@ const insuranceTableHeight = useMemo(() => {
         },
         body: JSON.stringify({
           status: 'Approved',
-          message: message // ✅ Include the message in the request
+          message: message //  Include the message in the request
         })
       });
 
@@ -460,7 +511,7 @@ const insuranceTableHeight = useMemo(() => {
       }
 
       const result = await response.json();
-      console.log('✅ Proposal approved successfully:', result);
+      console.info('[DocumentUpload][FinanceTable] Proposal approved successfully:', { hasData: !!result });
 
       // Trigger header refresh
       window.dispatchEvent(new CustomEvent('statusUpdated', {
@@ -468,18 +519,18 @@ const insuranceTableHeight = useMemo(() => {
       }));
 
     } catch (error) {
-      console.error('❌ Error approving proposal:', error);
+      console.error('[DocumentUpload][FinanceTable] Error approving proposal:', error.message);
       throw error;
     } finally {
       setStatusUpdateLoading(false);
     }
   };
 
-  // ✅ UPDATED: Reject handler with proper message handling
+  //  UPDATED: Reject handler with proper message handling
   const handleReject = async (message) => {
     setStatusUpdateLoading(true);
     try {
-      console.log('❌ Rejecting proposal for proposer:', proposer_id);
+      console.info('[DocumentUpload][FinanceTable] Rejecting proposal for proposer:', proposer_id);
 
       const response = await fetch(`${NODE_API_URL}/api/underwriting/underwriting-requests/${proposer_id}/status`, {
         method: 'PATCH',
@@ -488,7 +539,7 @@ const insuranceTableHeight = useMemo(() => {
         },
         body: JSON.stringify({
           status: 'Rejected',
-          message: message // ✅ Include the message in the request
+          message: message //  Include the message in the request
         })
       });
 
@@ -497,7 +548,7 @@ const insuranceTableHeight = useMemo(() => {
       }
 
       const result = await response.json();
-      console.log('❌ Proposal rejected successfully:', result);
+      console.info('[DocumentUpload][FinanceTable] Proposal rejected successfully:', { hasData: !!result });
 
       // Trigger header refresh
       window.dispatchEvent(new CustomEvent('statusUpdated', {
@@ -505,23 +556,26 @@ const insuranceTableHeight = useMemo(() => {
       }));
 
     } catch (error) {
-      console.error('❌ Error rejecting proposal:', error);
+      console.error('[DocumentUpload][FinanceTable] Error rejecting proposal:', error.message);
       throw error;
     } finally {
       setStatusUpdateLoading(false);
     }
   };
 
-  // ✅ Add useEffect for fetching insurance data:
+  //  Add useEffect for fetching insurance data:
   useEffect(() => {
     fetchInsuranceData();
   }, [proposer_id]);
 
-  // ✅ UPDATED: Needs Investigation handler with proper message handling
+  //  Add useEffect for fetching current status:
+
+
+  //  UPDATED: Needs Investigation handler with proper message handling
   const handleNeedsInvestigation = async (message) => {
     setStatusUpdateLoading(true);
     try {
-      console.log('🔍 Marking proposal for investigation:', proposer_id);
+      console.info('[DocumentUpload][FinanceTable] Marking proposal for investigation:', proposer_id);
 
       const response = await fetch(`${NODE_API_URL}/api/underwriting/underwriting-requests/${proposer_id}/status`, {
         method: 'PATCH',
@@ -530,7 +584,7 @@ const insuranceTableHeight = useMemo(() => {
         },
         body: JSON.stringify({
           status: 'Needs Investigation',
-          message: message // ✅ Include the message in the request
+          message: message //  Include the message in the request
         })
       });
 
@@ -539,7 +593,7 @@ const insuranceTableHeight = useMemo(() => {
       }
 
       const result = await response.json();
-      console.log('🔍 Proposal marked for investigation successfully:', result);
+      console.info('[DocumentUpload][FinanceTable] Proposal marked for investigation successfully:', { hasData: !!result });
 
       // Trigger header refresh
       window.dispatchEvent(new CustomEvent('statusUpdated', {
@@ -547,7 +601,7 @@ const insuranceTableHeight = useMemo(() => {
       }));
 
     } catch (error) {
-      console.error('❌ Error marking for investigation:', error);
+      console.error('[DocumentUpload][FinanceTable] Error marking for investigation:', error.message);
       throw error;
     } finally {
       setStatusUpdateLoading(false);
@@ -571,22 +625,23 @@ const insuranceTableHeight = useMemo(() => {
     }
   }, [isSmallMobile, isMobile, isSmallTablet, isTablet, isDesktop]);
 
-  // ✅ ENHANCED: Log reviewFlags for debugging
+  //  ENHANCED: Log reviewFlags for debugging
   useEffect(() => {
-    console.log('🔍 Finance Table - Review Flags:', reviewFlags);
+    console.debug('[DocumentUpload][FinanceTable] Review flags received:', { hasData: !!reviewFlags });
   }, [reviewFlags]);
   useEffect(() => {
     fetchCurrentStatus();
+    fetchFinanceScore();
   }, [proposer_id]);
 
-  // ✅ ADD THIS useEffect: Listen for status updates
+  //  ADD THIS useEffect: Listen for status updates
   useEffect(() => {
     const handleStatusUpdate = (event) => {
       const { proposer_id: updatedProposerId, status } = event.detail;
 
       // Only update if it's for the current proposer
       if (updatedProposerId === proposer_id) {
-        console.log('[FINANCE_TABLE] Status updated via event:', status);
+        console.debug('[DocumentUpload][FinanceTable] Status updated via event:', status);
         setCurrentStatus(status);
       }
     };
@@ -598,8 +653,7 @@ const insuranceTableHeight = useMemo(() => {
       window.removeEventListener('statusUpdated', handleStatusUpdate);
     };
   }, [proposer_id]);
-
-  // ✅ UPDATED: Enhanced error handling with proper JSON checks
+  //  UPDATED: Enhanced error handling with proper JSON checks
   useEffect(() => {
     const load = async () => {
       try {
@@ -610,47 +664,47 @@ const insuranceTableHeight = useMemo(() => {
           return;
         }
 
-        console.log(`🔗 Fetching proposer from: ${NODE_API_URL}/api/proposers/${proposer_id}`);
+        console.info('[DocumentUpload][FinanceTable] Fetching proposer data from API');
         const proposerResponse = await fetch(`${NODE_API_URL}/api/proposers/${proposer_id}`);
         if (!proposerResponse.ok) {
           const errorText = await proposerResponse.text();
-          console.error('❌ Proposer API Error:', errorText);
-          throw new Error(`Failed to fetch proposer (${proposerResponse.status}): ${errorText}`);
+          console.error('[DocumentUpload][FinanceTable] Proposer API error:', errorText);
+          throw new Error(`Failzzed to fetch proposer (${proposerResponse.status}): ${errorText}`);
         }
 
         const contentType = proposerResponse.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           const responseText = await proposerResponse.text();
-          console.error('❌ Expected JSON but got:', responseText);
+          console.error('[DocumentUpload][FinanceTable] Expected JSON but got non-JSON response');
           throw new Error('Proposer API returned non-JSON response');
         }
 
         const proposer = await proposerResponse.json();
-        console.log('✅ Fetched proposer data:', proposer);
+        console.info('[DocumentUpload][FinanceTable] Proposer data fetched successfully');
         setSelectedProposer(proposer);
 
-        console.log(`🔗 Fetching documents from: ${NODE_API_URL}/api/documents/${proposer_id}`);
+        console.info('[DocumentUpload][FinanceTable] Fetching documents from API');
         const docsResponse = await fetch(`${NODE_API_URL}/api/documents/${proposer_id}`);
         if (!docsResponse.ok) {
           if (docsResponse.status === 404) {
-            console.log('ℹ️ No documents found for this proposer');
+            console.info('[DocumentUpload][FinanceTable] No documents found for this proposer');
             setDocuments([]);
             setFilteredDocuments([]);
           } else {
             const errorText = await docsResponse.text();
-            console.error('❌ Documents API Error:', errorText);
+            console.error('[DocumentUpload][FinanceTable] Documents API error:', errorText);
             throw new Error(`Failed to fetch documents (${docsResponse.status}): ${errorText}`);
           }
         } else {
           const docsContentType = docsResponse.headers.get('content-type');
           if (!docsContentType || !docsContentType.includes('application/json')) {
             const responseText = await docsResponse.text();
-            console.error('❌ Expected JSON but got:', responseText);
+            console.error('[DocumentUpload][FinanceTable] Expected JSON but got non-JSON response');
             throw new Error('Documents API returned non-JSON response');
           }
 
           const list = await docsResponse.json();
-          console.log(`✅ Fetched ${list.length} documents for proposer ${proposer_id}:`, list);
+          console.info('[DocumentUpload][FinanceTable] Documents fetched successfully:', { count: list.length });
 
           const mapped = list
             .map((doc) => ({
@@ -668,7 +722,7 @@ const insuranceTableHeight = useMemo(() => {
               formattedDate: doc.date ? new Date(doc.date).toLocaleDateString('en-US') : new Date().toLocaleDateString('en-US'),
               dateObj: doc.date ? new Date(doc.date) : new Date(),
               processing_status: doc.processing_status || null,
-              // ✅ ADD THESE LINES: Include extracted_data and db_validated fields
+              //  ADD THESE LINES: Include extracted_data and db_validated fields
               extracted_data: doc.extracted_data,
               db_validated: doc.validated,
             }))
@@ -683,14 +737,14 @@ const insuranceTableHeight = useMemo(() => {
           let hasProcessedData = false;
 
           mapped.forEach(doc => {
-            // ✅ USE extracted_data instead of metadata
-            if (doc.extracted_data && doc.extracted_data.trim() !== '') {
+            //  USE extracted_data instead of metadata
+            if (doc.extracted_data !== '') {
               hasProcessedData = true;
               try {
-                const pythonApiResponse = JSON.parse(doc.extracted_data);
-                console.log(`🔍 Parsed stored data for doc ${doc.id}:`, pythonApiResponse);
+                const pythonApiResponse = doc.extracted_data;
+                console.debug('[DocumentUpload][FinanceTable] Parsed stored data for document:', { documentId: doc.id });
 
-                // ✅ FIXED: Use the stored Python API response structure directly
+                //  FIXED: Use the stored Python API response structure directly
                 const extractedData = pythonApiResponse.extracted_data || pythonApiResponse;
                 const comparisonResults = pythonApiResponse.comparison_results || {};
                 const accuracyMetrics = pythonApiResponse.accuracy_metrics || {};
@@ -713,10 +767,10 @@ const insuranceTableHeight = useMemo(() => {
                 immediateResults[doc.id] = {
                   document_id: doc.id,
                   proposer_id,
-                  extracted_data: extractedData, // ✅ Use inner extracted_data
-                  comparison_results: comparisonResults, // ✅ Use stored comparison_results
+                  extracted_data: extractedData, //  Use inner extracted_data
+                  comparison_results: comparisonResults, //  Use stored comparison_results
                   overall_match: isVerified,
-                  accuracy_metrics: accuracyMetrics, // ✅ Use stored accuracy_metrics
+                  accuracy_metrics: accuracyMetrics, //  Use stored accuracy_metrics
                   processing_time: pythonApiResponse.processing_time || 0,
                   confidence_score: accuracyMetrics.overall_accuracy ? accuracyMetrics.overall_accuracy / 100 : 0,
                   message: isVerified
@@ -731,10 +785,10 @@ const insuranceTableHeight = useMemo(() => {
 
                 immediateStatus[doc.id] = isVerified ? 'verified' : 'mismatch';
 
-                console.log(`✅ Restored status for doc ${doc.id}: ${immediateStatus[doc.id]} (overall_match: ${isVerified})`);
+                console.debug('[DocumentUpload][FinanceTable] Restored document status:', { documentId: doc.id, status: immediateStatus[doc.id], isVerified });
 
               } catch (error) {
-                console.error(`❌ Error parsing extracted data for document ${doc.id}:`, error);
+                console.error('[DocumentUpload][FinanceTable] Error parsing extracted data for document:', { documentId: doc.id, error: error.message });
                 immediateStatus[doc.id] = 'error';
               }
             } else {
@@ -746,12 +800,12 @@ const insuranceTableHeight = useMemo(() => {
           if (Object.keys(immediateStatus).length > 0) {
             setProcessingStatus(prev => ({ ...prev, ...immediateStatus }));
             setComparisonResults(prev => ({ ...prev, ...immediateResults }));
-            console.log(`✅ Initialized status for ${Object.keys(immediateStatus).length} documents from database`);
-            console.log('📊 Initial processing status:', immediateStatus);
+            console.info('[DocumentUpload][FinanceTable] Initialized document status from database:', { count: Object.keys(immediateStatus).length });
+            console.debug('[DocumentUpload][FinanceTable] Initial processing status:', immediateStatus);
           }
         }
       } catch (e) {
-        console.error('❌ Load error:', e);
+        console.error('[DocumentUpload][FinanceTable] Load error:', e.message);
         setError(e.message);
         setDocuments([]);
         setFilteredDocuments([]);
@@ -776,7 +830,7 @@ const insuranceTableHeight = useMemo(() => {
     setFilteredDocuments(result);
   }, [documents, searchTerm]);
 
-  // ✅ NEW: Auto-process all documents when they are loaded
+  //  NEW: Auto-process all documents when they are loaded
   useEffect(() => {
     // Abort controller to cancel ongoing requests
     const abortController = new AbortController();
@@ -787,16 +841,16 @@ const insuranceTableHeight = useMemo(() => {
       // Only auto-process if we have documents and they haven't been processed yet
       if (documents.length === 0 || !isMounted) return;
 
-      console.log('🚀 Auto-processing started for', documents.length, 'documents');
+      console.info('[DocumentUpload][FinanceTable] Auto-processing started:', { documentCount: documents.length });
       processingInProgress = true;
 
       // Check if any documents are already processed to avoid re-processing
       const unprocessedDocs = documents.filter(doc => {
-        console.log(`   Raw extracted_data for doc ${doc.id}:`, doc.extracted_data);
-        const hasExtractedData = doc.extracted_data && doc.extracted_data.trim() !== '';
+        console.debug('[DocumentUpload][FinanceTable] Checking document for processing:', { documentId: doc.id, hasExtractedData: !!(doc.extracted_data !== '') });
+        const hasExtractedData = doc.extracted_data;
 
         if (hasExtractedData) {
-          console.log(`⏭️ Skipping document ${doc.id} - already has extracted data`);
+          console.debug('[DocumentUpload][FinanceTable] Skipping document - already has extracted data:', { documentId: doc.id });
           return false;
         }
 
@@ -804,32 +858,32 @@ const insuranceTableHeight = useMemo(() => {
       });
 
       if (unprocessedDocs.length === 0) {
-        console.log('ℹ️ All documents already processed, skipping auto-processing');
+        console.info('[DocumentUpload][FinanceTable] All documents already processed, skipping auto-processing');
         processingInProgress = false;
         return;
       }
 
-      console.log(`📄 Processing ${unprocessedDocs.length} unprocessed documents`);
+      console.info('[DocumentUpload][FinanceTable] Processing unprocessed documents:', { count: unprocessedDocs.length });
 
       // Process documents sequentially with abort checks
       for (let i = 0; i < unprocessedDocs.length; i++) {
-        // ✅ CHECK: Stop processing if component unmounted or aborted
+        //  CHECK: Stop processing if component unmounted or aborted
         if (!isMounted || abortController.signal.aborted) {
-          console.log('🛑 Auto-processing stopped - component unmounted or aborted');
+          console.info('[DocumentUpload][FinanceTable] Auto-processing stopped - component unmounted or aborted');
           break;
         }
 
         const doc = unprocessedDocs[i];
 
         try {
-          console.log(`🔄 Auto-processing document ${i + 1}/${unprocessedDocs.length}: ${doc.name}`);
+          console.info('[DocumentUpload][FinanceTable] Auto-processing document:', { index: i + 1, total: unprocessedDocs.length, documentName: doc.name });
 
-          // ✅ ENHANCED: Pass abort signal to handleProcessDocument (if supported)
+          //  ENHANCED: Pass abort signal to handleProcessDocument (if supported)
           await handleProcessDocumentWithAbort(doc.id, abortController.signal);
 
-          // ✅ CHECK: Stop if component unmounted during processing
+          //  CHECK: Stop if component unmounted during processing
           if (!isMounted || abortController.signal.aborted) {
-            console.log('🛑 Auto-processing stopped during document processing');
+            console.info('[DocumentUpload][FinanceTable] Auto-processing stopped during document processing');
             break;
           }
 
@@ -853,17 +907,17 @@ const insuranceTableHeight = useMemo(() => {
           }
         } catch (error) {
           if (error.message === 'Aborted') {
-            console.log('🛑 Auto-processing aborted');
+            console.info('[DocumentUpload][FinanceTable] Auto-processing aborted');
             break;
           }
-          console.error(`❌ Error auto-processing document ${doc.id}:`, error);
+          console.error('[DocumentUpload][FinanceTable] Error auto-processing document:', { documentId: doc.id, error: error.message });
           // Continue processing other documents even if one fails
         }
       }
 
       processingInProgress = false;
       if (isMounted && !abortController.signal.aborted) {
-        console.log('✅ Auto-processing completed');
+        console.info('[DocumentUpload][FinanceTable] Auto-processing completed');
       }
     };
 
@@ -881,45 +935,49 @@ const insuranceTableHeight = useMemo(() => {
       });
     }
 
-    // ✅ CLEANUP FUNCTION: Called when component unmounts or dependencies change
+    //  CLEANUP FUNCTION: Called when component unmounts or dependencies change
     return () => {
-      console.log('🧹 Cleaning up auto-processing...');
+      console.info('[DocumentUpload][FinanceTable] Cleaning up auto-processing');
 
       isMounted = false;
       abortController.abort(); // This will stop all ongoing fetch requests
 
       if (processingInProgress) {
-        console.log('🛑 Stopped auto-processing due to component unmount');
+        console.info('[DocumentUpload][FinanceTable] Stopped auto-processing due to component unmount');
       }
     };
   }, [documents, selectedProposer, loading]); // Dependencies: trigger when documents or proposer data changes
-
-  // ✅ ADD THIS: Enhanced debug logging for persistence
+  //  ADD THIS: Enhanced debug logging for persistence
   useEffect(() => {
-    console.log('🔍 Debug - Persistence Restoration Check:');
-    console.log('   documents.length:', documents.length);
-    console.log('   processingStatus keys:', Object.keys(processingStatus).length);
-    console.log('   comparisonResults keys:', Object.keys(comparisonResults).length);
+    console.debug('[DocumentUpload][FinanceTable] Persistence restoration check:', {
+      documentCount: documents.length,
+      processingStatusCount: Object.keys(processingStatus).length,
+      comparisonResultsCount: Object.keys(comparisonResults).length
+    });
 
     documents.forEach(doc => {
-      console.log(`   Raw extracted_data for doc ${doc.id}:`, doc.extracted_data);
-      const hasExtractedData = doc.extracted_data && doc.extracted_data.trim() !== '';
-
+      const hasExtractedData = doc.extracted_data !== '';
       const status = processingStatus[doc.id];
       const hasComparison = !!comparisonResults[doc.id];
 
-      console.log(`   Doc ${doc.id} (${doc.name}):`);
-      console.log(`     hasExtractedData: ${hasExtractedData}`);
-      console.log(`     status: ${status}`);
-      console.log(`     hasComparison: ${hasComparison}`);
+      console.debug('[DocumentUpload][FinanceTable] Document status check:', {
+        documentId: doc.id,
+        documentName: doc.name,
+        hasExtractedData,
+        status,
+        hasComparison
+      });
 
       if (hasExtractedData) {
         try {
-          const parsed = JSON.parse(doc.extracted_data);
-          console.log(`     overall_match: ${parsed.overall_match}`);
-          console.log(`     has comparison_results: ${!!parsed.comparison_results}`);
+          const parsed = doc.extracted_data;
+          console.debug('[DocumentUpload][FinanceTable] Parsed document data:', {
+            documentId: doc.id,
+            overallMatch: parsed.overall_match,
+            hasComparisonResults: !!parsed.comparison_results
+          });
         } catch (e) {
-          console.log(`     parse error: ${e.message}`);
+          console.error('[DocumentUpload][FinanceTable] Parse error for document:', { documentId: doc.id, error: e.message });
         }
       }
     });
@@ -951,7 +1009,7 @@ const insuranceTableHeight = useMemo(() => {
       const day = date.getDate().toString().padStart(2, '0');
       return `${year}/${month}/${day}`;
     } catch (error) {
-      console.error('Error formatting DOB:', error);
+      console.error('[DocumentUpload][FinanceTable] Error formatting DOB:', error);
       return 'Invalid Date';
     }
   };
@@ -973,8 +1031,7 @@ const insuranceTableHeight = useMemo(() => {
     if (t.includes('gst')) return 'GST';
     return doc.document_type?.toUpperCase() || 'UNKNOWN';
   };
-
-  // ✅ ADD THIS SUCCESS POPUP COMPONENT:
+  //  ADD THIS SUCCESS POPUP COMPONENT:
   const SuccessPopup = ({ message, onDismiss }) => {
     return (
       <div style={{
@@ -1062,7 +1119,7 @@ const insuranceTableHeight = useMemo(() => {
     Object.keys(comparisonResults).forEach((id) => {
       const result = comparisonResults[id];
 
-      // ✅ FIXED: Use the Python API comparison results directly instead of recalculating
+      //  FIXED: Use the Python API comparison results directly instead of recalculating
       if (!result?.comparison_results) return;
 
       const comparisons = result.comparison_results || {};
@@ -1150,7 +1207,7 @@ const insuranceTableHeight = useMemo(() => {
             formattedDate: doc.date ? new Date(doc.date).toLocaleDateString('en-US') : new Date().toLocaleDateString('en-US'),
             dateObj: doc.date ? new Date(doc.date) : new Date(),
             processing_status: doc.processing_status || null,
-            // ✅ ADD THESE CRITICAL MISSING FIELDS:
+            //  ADD THESE CRITICAL MISSING FIELDS:
             extracted_data: doc.extracted_data,
             db_validated: doc.validated,
           }))
@@ -1158,29 +1215,26 @@ const insuranceTableHeight = useMemo(() => {
         setDocuments(enrichedData);
         setFilteredDocuments(enrichedData);
 
-        // ✅ ADD: Log the refreshed documents to verify extracted_data is present
-        console.log('🔄 Documents refreshed with extracted_data:', enrichedData.map(d => ({
-          id: d.id,
-          name: d.name,
-          hasExtractedData: !!(d.extracted_data && d.extracted_data.trim())
-        })));
+        //  ADD: Log the refreshed documents to verify extracted_data is present
+        console.info('[DocumentUpload][FinanceTable] Documents refreshed successfully:', {
+          count: enrichedData.length,
+          documentsWithData: enrichedData.filter(d => !!(d.extracted_data && d.extracted_data.trim())).length
+        });
       }
     } catch (error) {
-      console.error('❌ Failed to refresh documents:', error);
+      console.error('[DocumentUpload][FinanceTable] Failed to refresh documents:', error.message);
     }
   };
 
-  // ✅ COMPLETELY UPDATED: Main Python API processing function
+  //  COMPLETELY UPDATED: Main Python API processing function
   const handleProcessDocument = async (documentId) => {
-    console.log('🚀 === STARTING DOCUMENT PROCESSING ===');
-    console.log('📄 Document ID:', documentId);
-    console.log('🔗 Python API URL:', PYTHON_API_URL);
+    console.info('[DocumentUpload][FinanceTable] Starting document processing:', { documentId });
 
     setProcessingStatus((prev) => ({ ...prev, [documentId]: 'processing' }));
 
     try {
       const apiUrl = `${PYTHON_API_URL}/process-document/${documentId}`;
-      console.log('🔗 Full API URL:', apiUrl);
+      console.debug('[DocumentUpload][FinanceTable] Processing document via API:', { apiUrl });
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -1192,49 +1246,50 @@ const insuranceTableHeight = useMemo(() => {
         credentials: 'omit',
       });
 
-      console.log('📥 Response received:');
-      console.log('   Status:', response.status);
-      console.log('   Status Text:', response.statusText);
-      console.log('   OK:', response.ok);
+      console.debug('[DocumentUpload][FinanceTable] API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
 
       if (!response.ok) {
         let errorMessage;
         try {
           const errorText = await response.text();
-          console.error('❌ Error response:', errorText);
+          console.error('[DocumentUpload][FinanceTable] API error response:', errorText);
           errorMessage = errorText;
         } catch (parseError) {
-          console.error('❌ Could not parse error response:', parseError);
+          console.error('[DocumentUpload][FinanceTable] Could not parse error response:', parseError.message);
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
 
-      // ✅ ENHANCED: Better JSON parsing with content type check
+      //  ENHANCED: Better JSON parsing with content type check
       let pythonApiResponse;
       try {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           const responseText = await response.text();
-          console.error('❌ Expected JSON but got:', responseText.substring(0, 200));
+          console.error('[DocumentUpload][FinanceTable] Expected JSON but got non-JSON response');
           throw new Error('Python API returned non-JSON response');
         }
 
         const responseText = await response.text();
-        console.log('📄 Raw response text:', responseText);
+        console.debug('[DocumentUpload][FinanceTable] Raw response text received');
 
         if (!responseText) {
           throw new Error('Empty response from Python API');
         }
 
         pythonApiResponse = JSON.parse(responseText);
-        console.log('✅ Parsed Python API response:', pythonApiResponse);
+        console.info('[DocumentUpload][FinanceTable] Python API response parsed successfully');
       } catch (parseError) {
-        console.error('❌ Error parsing JSON response:', parseError);
+        console.error('[DocumentUpload][FinanceTable] Error parsing JSON response:', parseError.message);
         throw new Error(`Failed to parse Python API response: ${parseError.message}`);
       }
 
-      // ✅ UPDATED: Use Python API results directly without re-processing
+      //  UPDATED: Use Python API results directly without re-processing
       if (!pythonApiResponse.extracted_data) {
         throw new Error('Invalid response structure: missing extracted_data');
       }
@@ -1243,14 +1298,12 @@ const insuranceTableHeight = useMemo(() => {
         throw new Error('Proposer data not available for comparison');
       }
 
-      // ✅ NEW: Use Python API comparison results directly
+      //  NEW: Use Python API comparison results directly
       const comparisonResults = pythonApiResponse.comparison_results || {};
       const overallMatch = pythonApiResponse.overall_match || false;
       const accuracyMetrics = pythonApiResponse.accuracy_metrics || {};
 
-      console.log('📊 Python API comparison results:', comparisonResults);
-      console.log('📊 Overall match:', overallMatch);
-      console.log('📊 Accuracy metrics:', accuracyMetrics);
+      console.debug('[DocumentUpload][FinanceTable] Python API comparison results:', { hasComparisonResults: !!comparisonResults, overallMatch, hasAccuracyMetrics: !!accuracyMetrics });
 
       // Update document status in Node.js backend
       try {
@@ -1261,21 +1314,21 @@ const insuranceTableHeight = useMemo(() => {
           },
           body: JSON.stringify({
             validated: overallMatch,
-            extracted_data: JSON.stringify(pythonApiResponse), // ✅ Store the complete response
+            extracted_data: JSON.stringify(pythonApiResponse), //  Store the complete response
             processing_status: 'processed',
           }),
         });
 
         if (!updateResponse.ok) {
-          console.warn('⚠️ Failed to update document status in Node.js backend:', updateResponse.statusText);
+          console.warn('[DocumentUpload][FinanceTable] Failed to update document status in Node.js backend:', updateResponse.statusText);
         } else {
-          console.log('✅ Successfully updated document status in Node.js backend');
+          console.info('[DocumentUpload][FinanceTable] Document status updated successfully in Node.js backend');
         }
       } catch (updateError) {
-        console.warn('⚠️ Error updating document status:', updateError);
+        console.warn('[DocumentUpload][FinanceTable] Error updating document status:', updateError.message);
       }
 
-      // ✅ UPDATED: Create processing result using Python API data
+      //  UPDATED: Create processing result using Python API data
       const processingResult = {
         document_id: documentId,
         proposer_id,
@@ -1314,23 +1367,20 @@ const insuranceTableHeight = useMemo(() => {
       // Refresh documents from Node.js API
       await refreshDocuments();
 
-      console.log('🎉 === DOCUMENT PROCESSING COMPLETED SUCCESSFULLY ===');
+      console.info('[DocumentUpload][FinanceTable] Document processing completed successfully');
 
       // Show success/failure message
       alert(overallMatch
-        ? `✅ Document verified successfully! ${accuracyMetrics.overall_accuracy || 100}% accuracy.`
+        ? ` Document verified successfully! ${accuracyMetrics.overall_accuracy || 100}% accuracy.`
         : `⚠️ Document verification failed. ${accuracyMetrics.overall_accuracy || 0}% accuracy.`
       );
 
     } catch (error) {
-      console.error('💥 === ERROR IN DOCUMENT PROCESSING ===');
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
+      console.error('[DocumentUpload][FinanceTable] Document processing error:', error.message);
 
       setProcessingStatus((prev) => ({ ...prev, [documentId]: 'error' }));
 
-      // ✅ UPDATED: Enhanced error messages
+      //  UPDATED: Enhanced error messages
       let errorMessage = error.message;
       if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
         errorMessage = `Network connection failed. Please check if the Python API server is running at: ${PYTHON_API_URL}`;
@@ -1340,17 +1390,16 @@ const insuranceTableHeight = useMemo(() => {
         errorMessage = 'CORS error: Python API server may not be configured to accept requests from this domain.';
       }
 
-      alert(`❌ Error: ${errorMessage}`);
+      alert(` Error: ${errorMessage}`);
     }
   };
 
   const handleProcessDocumentWithAbort = async (documentId, abortSignal = null) => {
-    console.log('🚀 === STARTING DOCUMENT PROCESSING ===');
-    console.log('📄 Document ID:', documentId);
+    console.info('[DocumentUpload][FinanceTable] Starting document processing with abort support:', { documentId });
 
     // Check if already aborted before starting
     if (abortSignal?.aborted) {
-      console.log('🛑 Processing aborted before starting');
+      console.info('[DocumentUpload][FinanceTable] Processing aborted before starting');
       return;
     }
 
@@ -1358,9 +1407,9 @@ const insuranceTableHeight = useMemo(() => {
 
     try {
       const apiUrl = `${PYTHON_API_URL}/process-document/${documentId}`;
-      console.log('🔗 Full API URL:', apiUrl);
+      console.debug('[DocumentUpload][FinanceTable] Processing document via API with abort support:', { apiUrl });
 
-      // ✅ ENHANCED: Include abort signal in fetch request
+      //  ENHANCED: Include abort signal in fetch request
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -1369,39 +1418,40 @@ const insuranceTableHeight = useMemo(() => {
         },
         mode: 'cors',
         credentials: 'omit',
-        signal: abortSignal, // ✅ This will cancel the request if aborted
+        signal: abortSignal, //  This will cancel the request if aborted
       });
 
       // Check if aborted after fetch
       if (abortSignal?.aborted) {
-        console.log('🛑 Processing was aborted during fetch');
+        console.info('[DocumentUpload][FinanceTable] Processing was aborted during fetch');
         return;
       }
 
-      console.log('📥 Response received:');
-      console.log('   Status:', response.status);
-      console.log('   OK:', response.ok);
+      console.debug('[DocumentUpload][FinanceTable] API response received with abort support:', {
+        status: response.status,
+        ok: response.ok
+      });
 
       if (!response.ok) {
         let errorMessage;
         try {
           const errorText = await response.text();
-          console.error('❌ Error response:', errorText);
+          console.error('[DocumentUpload][FinanceTable] Error response:', errorText);
           errorMessage = errorText;
         } catch (parseError) {
-          console.error('❌ Could not parse error response:', parseError);
+          console.error('[DocumentUpload][FinanceTable] Could not parse error response:', parseError.message);
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
         throw new Error(errorMessage);
       }
 
-      // ✅ Parse response with abort check
+      //  Parse response with abort check
       let pythonApiResponse;
       try {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           const responseText = await response.text();
-          console.error('❌ Expected JSON but got:', responseText.substring(0, 200));
+          console.error('[DocumentUpload][FinanceTable] Expected JSON but got non-JSON response');
           throw new Error('Python API returned non-JSON response');
         }
 
@@ -1409,7 +1459,7 @@ const insuranceTableHeight = useMemo(() => {
 
         // Check if aborted during response parsing
         if (abortSignal?.aborted) {
-          console.log('🛑 Processing was aborted during response parsing');
+          console.info('[DocumentUpload][FinanceTable] Processing was aborted during response parsing');
           return;
         }
 
@@ -1418,13 +1468,13 @@ const insuranceTableHeight = useMemo(() => {
         }
 
         pythonApiResponse = JSON.parse(responseText);
-        console.log('✅ Parsed Python API response:', pythonApiResponse);
+        console.info('[DocumentUpload][FinanceTable] Python API response parsed successfully with abort support');
       } catch (parseError) {
         if (abortSignal?.aborted) {
-          console.log('🛑 Processing was aborted');
+          console.info('[DocumentUpload][FinanceTable] Processing was aborted');
           return;
         }
-        console.error('❌ Error parsing JSON response:', parseError);
+        console.error('[DocumentUpload][FinanceTable] Error parsing JSON response:', parseError.message);
         throw new Error(`Failed to parse Python API response: ${parseError.message}`);
       }
 
@@ -1439,16 +1489,16 @@ const insuranceTableHeight = useMemo(() => {
 
       // Final abort check before updating state
       if (abortSignal?.aborted) {
-        console.log('🛑 Processing was aborted before updating state');
+        console.info('[DocumentUpload][FinanceTable] Processing was aborted before updating state');
         return;
       }
 
-      // ✅ UPDATED: Use Python API results directly
+      //  UPDATED: Use Python API results directly
       const comparisonResults = pythonApiResponse.comparison_results || {};
       const overallMatch = pythonApiResponse.overall_match || false;
       const accuracyMetrics = pythonApiResponse.accuracy_metrics || {};
 
-      console.log('📊 Python API comparison results:', comparisonResults);
+      console.debug('[DocumentUpload][FinanceTable] Python API comparison results with abort support:', { hasComparisonResults: !!comparisonResults, overallMatch, hasAccuracyMetrics: !!accuracyMetrics });
 
       // Update states only if not aborted
       if (!abortSignal?.aborted) {
@@ -1459,24 +1509,24 @@ const insuranceTableHeight = useMemo(() => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               validated: overallMatch,
-              extracted_data: JSON.stringify(pythonApiResponse), // ✅ Store the complete response
+              extracted_data: JSON.stringify(pythonApiResponse), //  Store the complete response
               processing_status: 'processed',
             }),
             signal: abortSignal, // Also abort this request
           });
 
           if (!updateResponse.ok) {
-            console.warn('⚠️ Failed to update document status');
+            console.warn('[DocumentUpload][FinanceTable] Failed to update document status');
           }
         } catch (updateError) {
           if (abortSignal?.aborted) {
-            console.log('🛑 Update request was aborted');
+            console.info('[DocumentUpload][FinanceTable] Update request was aborted');
             return;
           }
-          console.warn('⚠️ Error updating document status:', updateError);
+          console.warn('[DocumentUpload][FinanceTable] Error updating document status:', updateError.message);
         }
 
-        // ✅ UPDATED: Create processing result using Python API data
+        //  UPDATED: Create processing result using Python API data
         const processingResult = {
           document_id: documentId,
           proposer_id,
@@ -1511,19 +1561,18 @@ const insuranceTableHeight = useMemo(() => {
         }
 
         await refreshDocuments();
-        console.log('🎉 === DOCUMENT PROCESSING COMPLETED SUCCESSFULLY ===');
+        console.info('[DocumentUpload][FinanceTable] Document processing completed successfully with abort support');
       }
 
     } catch (error) {
       // Handle abort error differently
       if (error.name === 'AbortError' || abortSignal?.aborted) {
-        console.log('🛑 Document processing was aborted');
+        console.info('[DocumentUpload][FinanceTable] Document processing was aborted');
         // Don't update processing status to error for aborted requests
         return;
       }
 
-      console.error('💥 === ERROR IN DOCUMENT PROCESSING ===');
-      console.error('Error message:', error.message);
+      console.error('[DocumentUpload][FinanceTable] Document processing error with abort support:', error.message);
 
       // Only update error state if not aborted
       if (!abortSignal?.aborted) {
@@ -1536,7 +1585,7 @@ const insuranceTableHeight = useMemo(() => {
           errorMessage = 'Server response could not be parsed. The Python API may be returning invalid data.';
         }
 
-        alert(`❌ Error: ${errorMessage}`);
+        alert(` Error: ${errorMessage}`);
       }
     }
   };
@@ -1544,7 +1593,7 @@ const insuranceTableHeight = useMemo(() => {
   const handlePreviewClick = async (documentId) => {
     try {
       setPreviewError(null);
-      console.log('👁️ Previewing document with ID:', documentId);
+      console.info('[DocumentUpload][FinanceTable] Previewing document:', { documentId });
       const response = await fetch(`${NODE_API_URL}/api/documents/preview/${documentId}`);
       if (!response.ok) throw new Error(`Failed to fetch document ${documentId}: ${response.statusText}`);
       const data = await response.json();
@@ -1554,7 +1603,7 @@ const insuranceTableHeight = useMemo(() => {
         throw new Error('PDF URL not found');
       }
     } catch (error) {
-      console.error('❌ Error fetching PDF URL:', error);
+      console.error('[DocumentUpload][FinanceTable] Error fetching PDF URL:', error.message);
       setPreviewError(error.message);
     }
   };
@@ -1820,40 +1869,30 @@ const insuranceTableHeight = useMemo(() => {
     <div style={{
       position: 'relative',
       width: '100%',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      gap: '12px',
-      flexShrink: 0,
-      zIndex: 20,
       height: isDesktop ? 80 : isTablet ? 72 : 64,
-      padding: 8,
+      padding: 12,
       background: 'linear-gradient(0deg, #7AA5FF 0%, #3371F2 0%, #0F1522 100%), #FFECCE',
+      overflow: 'hidden',
+      borderRadius: 12,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
       marginBottom: isMobileOrSmaller ? 16 : isTablet ? 14 : 12,
       fontFamily: FAMILY
     }}>
+      {/* Background overlay */}
       <div style={{
         position: 'absolute',
         top: 0,
         left: 0,
-        width: '303px',
-        height: '206px',
-        transform: 'rotate(-12deg)',
+        width: 303.32,
+        height: 206.15,
+        transform: 'rotate(-7deg)',
         transformOrigin: 'top left',
         background: 'linear-gradient(51deg, rgba(92, 118, 171, 0.20) 0%, rgba(165.50, 177, 200.50, 0.20) 60%, rgba(76, 99, 146, 0.20) 93%)'
       }} />
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '100%',
-        height: '100%',
-        transform: 'rotate(-3deg)',
-        transformOrigin: 'top left',
-        background: 'linear-gradient(51deg, rgba(92, 118, 171, 0.20) 0%, rgba(165.50, 177, 200.50, 0.20) 60%, rgba(76, 99, 146, 0.20) 93%)'
-      }} />
+
+      {/* Watermark */}
       <div style={{
         position: 'absolute',
         top: 8,
@@ -1868,24 +1907,27 @@ const insuranceTableHeight = useMemo(() => {
           height: isDesktop ? 32 : 24
         }} />
       </div>
+
+      {/* Main content */}
       <div style={{
         position: 'relative',
-        zIndex: 10,
-        width: '100%',
-        height: '100%',
+        zIndex: 5,
         display: 'flex',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        width: '100%'
       }}>
+        {/* Left side - Icon and Content */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12
+          gap: 15
         }}>
+          {/* Icon */}
           <div style={{
             width: isDesktop ? 48 : 40,
             height: isDesktop ? 48 : 40,
-            background: 'linear-gradient(135deg, #2563eb 0%, rgba(59, 130, 246, 0.4) 100%)',
+            background: 'linear-gradient(223deg, #3371F2 0%, rgba(51, 113, 242, 0.40) 100%)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -1896,48 +1938,120 @@ const insuranceTableHeight = useMemo(() => {
               height: isDesktop ? 28 : 24
             }} />
           </div>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-            <span style={{
-              color: 'white',
-              fontWeight: 500,
-              fontSize: isDesktop ? 12 : 12
-            }}>
-              Finance Score
-            </span>
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 4
-            }}>
-            </div>
-          </div>
-        </div>
-        {isDesktop && (
+
+          {/* Content with title and risk factor side by side */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            marginTop: 8
+            gap: 24 // Gap between title and risk factor badge
           }}>
+            <div style={{
+              color: 'white',
+              fontSize: 12,
+              fontFamily: FAMILY,
+              fontWeight: '500',
+              lineHeight: '16.8px'
+            }}>
+              Financial Risk
+            </div>
+
+            {/* Risk Factor Badge positioned beside the title */}
+            {financeScore && financeScore.risk_category && (
+              <div style={{
+                paddingLeft: 12,
+                paddingRight: 12,
+                paddingTop: 4,
+                paddingBottom: 4,
+                background: (() => {
+                  const category = financeScore.risk_category.toLowerCase();
+                  if (category === 'safe') return 'rgba(45, 210, 154, 0.8)';
+                  if (category === 'low risk') return 'rgba(250, 224, 0, 1)';
+                  if (category === 'medium risk') return 'rgba(255, 166, 45, 1)';
+                  if (category === 'high risk') return 'rgba(242, 51, 54, 1)';
+                  if (category === 'reject') return 'rgba(242, 51, 54, 1)';
+                  return 'linear-gradient(96deg, #5A98FF 0%, #0463FF 100%)'; // fallback
+                })(),
+                borderRadius: 5,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                whiteSpace: 'nowrap'
+              }}>
+                <span style={{
+                  color: 'white',
+                  fontSize: 12,
+                  fontFamily: FAMILY,
+                  fontWeight: '500',
+                  lineHeight: '20px',
+                  textTransform: 'capitalize'
+                }}>
+                  {financeScore.risk_category}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right side - Score display */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end'
+        }}>
+          {financeScoreLoading ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <div style={{
+                width: 16,
+                height: 16,
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTop: '2px solid white',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              <span style={{
+                color: 'white',
+                fontSize: isDesktop ? 14 : 12,
+                fontWeight: 600
+              }}>
+                Calculating...
+              </span>
+            </div>
+          ) : financeScoreError ? (
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: 4
             }}>
               <span style={{
-                color: 'white',
-                fontSize: 12,
+                color: '#ffcccb',
+                fontSize: isDesktop ? 12 : 10,
                 fontWeight: 500
               }}>
-                4/4 parameters verified
+                Error
               </span>
             </div>
-          </div>
-        )}
+          ) : financeScore ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              gap: 2
+            }}>
+              {/* Score display can be added here if needed in the future */}
+            </div>
+          ) : (
+            <span style={{
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: isDesktop ? 12 : 10,
+              fontWeight: 500
+            }}>
+              Not Calculated
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -2027,7 +2141,7 @@ const insuranceTableHeight = useMemo(() => {
   );
 
   const renderVerificationChips = (attributeKey) => {
-    console.log(`🔍 Rendering chips for attribute: ${attributeKey}`);
+    console.debug('[DocumentUpload][FinanceTable] Rendering verification chips for attribute:', attributeKey);
     const verifiedDocs = [];
     const errorDocs = [];
 
@@ -2037,9 +2151,9 @@ const insuranceTableHeight = useMemo(() => {
       if (!doc) return;
 
       let docType = doc.document_type || doc.name || '';
-      console.log(`🔍 Original docType: ${docType}`);
+      console.debug('[DocumentUpload][FinanceTable] Processing document type:', { originalType: docType });
 
-      // ✅ SHORT NAMES: Use concise names that fit in chips
+      //  SHORT NAMES: Use concise names that fit in chips
       if (docType.toLowerCase().includes('bank')) docType = 'Bank';
       else if (docType.toLowerCase().includes('itr')) docType = 'ITR';
       else if (docType.toLowerCase().includes('pan')) docType = 'PAN';
@@ -2053,7 +2167,7 @@ const insuranceTableHeight = useMemo(() => {
           .trim()
           .substring(0, 8); // Max 8 characters
       }
-      console.log(`🔍 Formatted docType: ${docType}`);
+      console.debug('[DocumentUpload][FinanceTable] Formatted document type:', { formattedType: docType });
 
       // Map attribute keys to comparison result keys
       let comparisonKey = attributeKey.toLowerCase();
@@ -2072,7 +2186,7 @@ const insuranceTableHeight = useMemo(() => {
 
     const chips = [];
 
-    // ✅ VERIFIED DOCUMENTS: Improved styling
+    //  VERIFIED DOCUMENTS: Improved styling
     verifiedDocs.forEach((doc, index) => {
       chips.push(
         <div
@@ -2185,101 +2299,99 @@ const insuranceTableHeight = useMemo(() => {
 
     return <>{chips}</>;
   };
-
-  // ✅ UPDATED: Insurance table with proper height matching
- // ✅ UPDATED: Insurance table with TWO fields (Premium + Sum Insured)
-const insuranceTable = (
-  <div style={{
-    borderRadius: 10,
-    overflow: 'hidden',
-    background: COLORS.white,
-    border: `1px solid ${COLORS.grayLine}`,
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: FAMILY,
-    height: insuranceTableHeight, // ✅ Dynamic height for 2 fields
-  }}>
-    {/* Header */}
+  //  ADD THIS NEW INSURANCE TABLE:
+  const insuranceTable = (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      background: COLORS.headerGrad,
-      height: tableHeaderHeight, // ✅ Same header height as documents table
-      flex: '0 0 auto',
-      padding: isSmallMobile ? '0 6px' : isMobileOrSmaller ? '0 8px' : '0 12px',
-    }}>
-      <div style={{
-        color: '#fff',
-        fontWeight: 600,
-        fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12 : 13
-      }}>
-        Proposal Information
-      </div>
-    </div>
-
-    {/* Content - Now with 2 equal-height rows */}
-    <div style={{
+      borderRadius: 10,
+      overflow: 'hidden',
+      background: COLORS.white,
+      border: `1px solid ${COLORS.grayLine}`,
       display: 'flex',
       flexDirection: 'column',
-      flex: 1
+      fontFamily: FAMILY,
+      marginTop: isSmallMobile ? 10 : isMobile ? 12 : isTablet ? 14 : 16,
     }}>
-      {/* Premium Row */}
+      {/* Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        background: '#FAFBFF',
-        borderBottom: `1px solid ${COLORS.grayLine}`,
-        minHeight: isSmallMobile ? 44 : isMobile ? 46 : isTablet ? 50 : 52,
-        flex: 1 // ✅ Equal height distribution
+        background: COLORS.headerGrad,
+        height: tableHeaderHeight,
+        flex: '0 0 auto',
+        padding: isSmallMobile ? '0 6px' : isMobileOrSmaller ? '0 8px' : '0 12px',
       }}>
         <div style={{
-          flex: 1,
-          padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
-          color: COLORS.textMain,
-          fontWeight: 500,
-          fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
-        }}>
-          Insurance Premium
-        </div>
-        <div style={{
-          padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
-          color: COLORS.textMain,
+          color: '#fff',
           fontWeight: 600,
-          fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12 : 13
         }}>
-          {formatCurrency(insuranceData.premium)}
+          Insurance Information
         </div>
       </div>
 
-      {/* Sum Insured Row */}
+      {/* Content - Now with 2 equal-height rows */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
-        background: COLORS.white,
-        minHeight: isSmallMobile ? 44 : isMobile ? 46 : isTablet ? 50 : 52,
-        flex: 1 // ✅ Equal height distribution
+        flexDirection: 'column',
+        flex: 1
       }}>
+        {/* Premium Row */}
         <div style={{
-          flex: 1,
-          padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
-          color: COLORS.textMain,
-          fontWeight: 500,
-          fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          display: 'flex',
+          alignItems: 'center',
+          background: '#FAFBFF',
+          borderBottom: `1px solid ${COLORS.grayLine}`,
+          minHeight: isSmallMobile ? 44 : isMobile ? 46 : isTablet ? 50 : 52,
+          flex: 1 // ✅ Equal height distribution
         }}>
-          Sum Insured
+          <div style={{
+            flex: 1,
+            padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
+            color: COLORS.textMain,
+            fontWeight: 500,
+            fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          }}>
+            Insurance Premium
+          </div>
+          <div style={{
+            padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
+            color: COLORS.textMain,
+            fontWeight: 600,
+            fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          }}>
+            {formatCurrency(insuranceData.premium)}
+          </div>
         </div>
+
+        {/* Sum Insured Row */}
         <div style={{
-          padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
-          color: COLORS.textMain,
-          fontWeight: 600,
-          fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          display: 'flex',
+          alignItems: 'center',
+          background: COLORS.white,
+          minHeight: isSmallMobile ? 44 : isMobile ? 46 : isTablet ? 50 : 52,
+          flex: 1 // ✅ Equal height distribution
         }}>
-          {formatCurrency(insuranceData.sumInsured)}
+          <div style={{
+            flex: 1,
+            padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
+            color: COLORS.textMain,
+            fontWeight: 500,
+            fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          }}>
+            Sum Insured
+          </div>
+          <div style={{
+            padding: isSmallMobile ? '6px' : isMobileOrSmaller ? '8px' : '10px 12px',
+            color: COLORS.textMain,
+            fontWeight: 600,
+            fontSize: isSmallMobile ? 10 : isMobile ? 11 : isTablet ? 12.5 : 13.5,
+          }}>
+            {formatCurrency(insuranceData.sumInsured)}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 
   const cardsGrid = (
     <div style={{
@@ -2287,7 +2399,7 @@ const insuranceTable = (
       gridTemplateColumns: isMobileOrSmaller ? '1fr' : '1fr 1fr',
       gap: cardGap,
       fontFamily: FAMILY,
-      marginTop: isSmallMobile ? 8 : isMobile ? 10 : isTablet ? 18 : 20, 
+      marginTop: isSmallMobile ? 8 : isMobile ? 10 : isTablet ? 18 : 20,
     }}>
       <Card
         iconGradient="linear-gradient(223deg, #FFA62D 0%, rgba(249, 187, 95, 0.70) 100%)"
@@ -2391,7 +2503,7 @@ const insuranceTable = (
           let badgeText = '';
           let badgeVariant = 'success';
 
-          // ✅ UPDATED: Use 'pending' variant for grey color
+          //  UPDATED: Use 'pending' variant for grey color
           if (isProcessing) {
             badgeText = 'Processing';
             badgeVariant = 'warning';
@@ -2550,7 +2662,7 @@ const insuranceTable = (
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -2602,7 +2714,8 @@ const insuranceTable = (
           </div>
         </div>
 
-        {/* ✅ UPDATED: Conditional Bottom Buttons based on mc_required */}
+        {/*  UPDATED: Conditional Bottom Buttons based on mc_required */}
+        {/*  UPDATED: Conditional Bottom Buttons based on mc_required */}
         <div style={{
           display: 'flex',
           justifyContent: isMobileOrSmaller ? 'center' : 'flex-end',
@@ -2643,7 +2756,7 @@ const insuranceTable = (
             </div>
           ) : (
             <>
-              {/* ✅ UPDATED: Conditional buttons based on reviewFlags.mc_required */}
+              {/*  UPDATED: Conditional buttons based on reviewFlags.mc_required */}
               {reviewFlags?.mc_required === false ? (
                 <>
                   <button
@@ -2749,6 +2862,41 @@ const insuranceTable = (
                     }}
                   >
                     {statusUpdateLoading && currentStatus !== 'Needs Investigation' ? 'Processing...' : 'Needs Investigation'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setApprovalModalOpen(true);
+                      setApprovalModalType('escalate');
+                      setApprovalModalStatus('confirm');
+                      setApprovalModalError('');
+                      setModalMessage('');
+                    }}
+                    disabled={statusUpdateLoading || currentStatus === 'Needs Investigation'}
+                    style={{
+                      minWidth: 140,
+                      height: 'auto',
+                      minHeight: isSmallMobile ? 34 : isMobile ? 36 : isTablet ? 38 : 40,
+                      padding: '8px 12px',
+                      background: currentStatus === 'Needs Investigation' ? '#E2EAFB' : '#0252A9',
+                      color: currentStatus === 'Needs Investigation' ? '#0252A9' : 'white',
+                      borderRadius: 12,
+                      border: 'none',
+                      fontFamily: 'PP Neue Montreal, "PP Neue Montreal", sans-serif',
+                      fontWeight: 500,
+                      fontSize: isSmallMobile ? 12 : isMobile ? 13 : isTablet ? 14 : 15,
+                      boxShadow: '0 4px 12px rgba(5, 82, 169, 0.18)',
+                      cursor: (statusUpdateLoading || currentStatus === 'Needs Investigation') ? 'not-allowed' : 'pointer',
+                      opacity: (statusUpdateLoading || currentStatus === 'Needs Investigation') ? 0.7 : 1,
+                      transition: 'all 0.2s',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      textAlign: 'center',
+                      lineHeight: '1.2',
+                      display: 'inline-block'
+                    }}
+                  >
+                    Escalate to Head
                   </button>
                 </>
               ) : (
@@ -2902,7 +3050,7 @@ const insuranceTable = (
                     color: comparisonResults[selectedDocumentId].overall_match ? '#065f46' : '#991b1b',
                     marginBottom: 4
                   }}>
-                    {comparisonResults[selectedDocumentId].overall_match ? '✅ Document Matched' : '❌ Document Not Matched'}
+                    {comparisonResults[selectedDocumentId].overall_match ? ' Document Matched' : ' Document Not Matched'}
                   </div>
                   <div style={{
                     fontSize: isSmallMobile ? 12 : 14,
@@ -3226,10 +3374,10 @@ const insuranceTable = (
                     title="Document Preview"
                     loading="lazy"
                     onLoad={() => {
-                      console.log('📄 Document preview loaded successfully');
+                      console.debug('[DocumentUpload][FinanceTable] Document preview loaded successfully');
                     }}
                     onError={() => {
-                      console.error('❌ Error loading document preview');
+                      console.error('[DocumentUpload][FinanceTable] Error loading document preview');
                       setPreviewError('Failed to load document preview. Please try again.');
                     }}
                   />
@@ -3249,7 +3397,10 @@ const insuranceTable = (
           </div>
         )}
 
-        {/* ✅ APPROVAL MODAL */}
+
+
+
+        {/*  APPROVAL MODAL */}
         {approvalModalOpen && (
           <div style={{
             position: 'fixed',
@@ -3351,9 +3502,9 @@ const insuranceTable = (
                             newStatus = 'Needs Investigation';
                           }
 
-                          // ✅ FIXED: Update both status and message immediately
+                          //  FIXED: Update both status and message immediately
                           setCurrentStatus(newStatus);
-                          setModalMessage(modalMessage.trim()); // ✅ Keep the message for display
+                          setModalMessage(modalMessage.trim()); //  Keep the message for display
 
                           // Show success popup
                           setSuccessMessage(modalMessage.trim());
@@ -3363,7 +3514,7 @@ const insuranceTable = (
                           // Auto-dismiss success popup after 3 seconds
                           setTimeout(() => {
                             setShowSuccessPopup(false);
-                            // ✅ DON'T clear modalMessage here - keep it for status display
+                            //  DON'T clear modalMessage here - keep it for status display
                           }, 3000);
 
                         } catch (err) {
@@ -3460,10 +3611,10 @@ const insuranceTable = (
                       src={tickIcon}
                       alt="Success Tick"
                       style={{
-                        width: 40, // ✅ INCREASED SIZE: Made larger and more prominent
-                        height: 40, // ✅ INCREASED SIZE: Made larger and more prominent
+                        width: 40, //  INCREASED SIZE: Made larger and more prominent
+                        height: 40, //  INCREASED SIZE: Made larger and more prominent
                         objectFit: 'contain',
-                        filter: 'brightness(0) invert(1)' // ✅ ADDED: Makes SVG white to show on blue background
+                        filter: 'brightness(0) invert(1)' //  ADDED: Makes SVG white to show on blue background
                       }}
                     />
                   </div>

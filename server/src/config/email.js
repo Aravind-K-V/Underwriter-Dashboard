@@ -3,7 +3,8 @@ import { prettyLog } from './logger.js';
 
 const createTransporter = () => {
   if (process.env.USE_SENDGRID && process.env.SENDGRID_API_KEY) {
-    prettyLog('Using SendGrid for email transport');
+    console.info('[Email][Config] Using SendGrid for email transport');
+    prettyLog('Using SendGrid for email transport', null, { level: 'info' });
     return nodemailer.createTransport({
       host: 'smtp.sendgrid.net',
       port: 587,
@@ -13,7 +14,8 @@ const createTransporter = () => {
       },
     });
   }
-  prettyLog('Using Gmail for email transport');
+  console.info('[Email][Config] Using Gmail for email transport');
+  prettyLog('Using Gmail for email transport', null, { level: 'info' });
   return nodemailer.createTransport({
     service: 'gmail',
     auth: {

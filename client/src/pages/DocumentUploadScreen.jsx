@@ -69,7 +69,7 @@ const DocumentUploadScreen = () => {
 
       try {
         setLoading(true);
-        console.log('🔍 Fetching data for proposer:', proposer_id);
+        console.info('[DocumentUpload][ReviewFlags] Fetching review flags for proposer:', proposer_id);
 
         // Fetch review flags
         const reviewFlagsResponse = await fetch(`/api/underwriting/review-flags/${proposer_id}`);
@@ -77,11 +77,11 @@ const DocumentUploadScreen = () => {
           throw new Error('Failed to fetch review flags');
         }
         const reviewFlagsData = await reviewFlagsResponse.json();
-        console.log('✅ Review flags loaded:', reviewFlagsData);
+        console.info('[DocumentUpload][ReviewFlags] Review flags loaded successfully:', { finreview_required: reviewFlagsData.finreview_required, mc_required: reviewFlagsData.mc_required });
         setReviewFlags(reviewFlagsData);
 
       } catch (err) {
-        console.error('❌ Error fetching review flags:', err);
+        console.error('[DocumentUpload][ReviewFlags] Failed to fetch review flags:', err.message);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -141,7 +141,7 @@ const DocumentUploadScreen = () => {
             isMobile ? 'text-base' :
               'text-lg'
             }`}>
-            ❌ Error: {error}
+             Error: {error}
           </div>
           <button
             onClick={() => window.location.reload()}

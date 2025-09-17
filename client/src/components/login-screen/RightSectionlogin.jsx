@@ -24,13 +24,13 @@ const RightSectionlogin = ({ email: propEmail, setEmail: setPropEmail, password:
 
   // Debug props on mount
   useEffect(() => {
-    console.log('RightSectionlogin props:', {
-      propEmail,
-      setPropEmail: typeof setPropEmail,
-      propPassword,
-      setPropPassword: typeof setPropPassword,
-      propError,
-      setPropError: typeof setPropError,
+    console.debug('[Auth][RightSectionLogin] Component props initialized:', {
+      hasPropEmail: !!propEmail,
+      hasSetPropEmail: typeof setPropEmail === 'function',
+      hasPropPassword: !!propPassword,
+      hasSetPropPassword: typeof setPropPassword === 'function',
+      hasPropError: !!propError,
+      hasSetPropError: typeof setPropError === 'function',
     });
   }, []);
 
@@ -61,15 +61,15 @@ const RightSectionlogin = ({ email: propEmail, setEmail: setPropEmail, password:
 
   // Handle login submission with API call
   const handleLogin = async () => {
-    console.log('handleLogin called with:', { email_id: email, password }); // Debug log
+    console.info('[Auth][RightSectionLogin] Login attempt initiated:', { email });
     try {
       // Send login request to API
-      const response = await axios.post('http://13.232.45.218:5000/api/login', {
+      const response = await axios.post('http://localhost:5000/api/login', {
         email_id: email, // Match backend expected field name
         password,
       });
 
-      console.log('Server response:', response.data); // Debug log
+      console.debug('[Auth][RightSectionLogin] Server response received:', { success: response.data.success });
       if (response.data.success) {
         setSuccessMsg('Login successful!'); // Display success message
         setErrorMsg('');
@@ -78,6 +78,7 @@ const RightSectionlogin = ({ email: propEmail, setEmail: setPropEmail, password:
         }
         localStorage.setItem('isAuthenticated', 'true'); // Store authentication status
         localStorage.setItem('user', JSON.stringify({ email_id: email, role: 'underwriter' })); // Store user data
+        console.info('[Auth][RightSectionLogin] Login successful, navigating to dashboard');
         navigate('/dashboard'); // Navigate to dashboard
       } else {
         setErrorMsg(response.data.message || 'Invalid credentials'); // Display server error
@@ -85,9 +86,10 @@ const RightSectionlogin = ({ email: propEmail, setEmail: setPropEmail, password:
           setPropError(response.data.message || 'Invalid credentials');
         }
         setSuccessMsg('');
+        console.warn('[Auth][RightSectionLogin] Login failed:', response.data.message);
       }
     } catch (error) {
-      console.error('Login error:', error.response?.data || error.message); // Debug log
+      console.error('[Auth][RightSectionLogin] Login request failed:', error.response?.data?.message || error.message);
       const errorMessage = error.response?.data?.message || 'Server error';
       setErrorMsg(errorMessage); // Display error
       if (typeof setPropError === 'function') {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useMediaQuery } from 'react-responsive';
 
 const TabsSection = ({ activeTab, setActiveTab, tabs }) => {
@@ -6,6 +6,22 @@ const TabsSection = ({ activeTab, setActiveTab, tabs }) => {
   const isDesktop = useMediaQuery({ minWidth: 1024 });
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1023 });
   const isMobile = useMediaQuery({ maxWidth: 767 });
+
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[UI][DocumentUploadScreenTabsSection] Component mounted');
+  }, []);
+
+  // Log when activeTab changes
+  useEffect(() => {
+    console.debug('[UI][DocumentUploadScreenTabsSection] Active tab changed:', activeTab);
+  }, [activeTab]);
+
+  // Handle tab click
+  const handleTabClick = (tab) => {
+    console.info('[UI][DocumentUploadScreenTabsSection] Tab clicked:', { from: activeTab, to: tab });
+    setActiveTab(tab);
+  };
 
   // Desktop Layout
   if (isDesktop) {
@@ -15,7 +31,7 @@ const TabsSection = ({ activeTab, setActiveTab, tabs }) => {
           {tabs.map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               className="relative py-4 px-2 font-medium text-base focus:outline-none transition-colors duration-200 text-gray-500 hover:text-blue-700"
               style={{
                 color: activeTab === tab ? '#2563eb' : '',
@@ -55,7 +71,7 @@ const TabsSection = ({ activeTab, setActiveTab, tabs }) => {
           {tabs.map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               className="relative py-3 px-3 font-medium text-sm focus:outline-none transition-colors duration-200 text-gray-500 hover:text-blue-700 whitespace-nowrap"
               style={{
                 color: activeTab === tab ? '#2563eb' : '',
@@ -93,7 +109,7 @@ const TabsSection = ({ activeTab, setActiveTab, tabs }) => {
         {tabs.map(tab => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => handleTabClick(tab)}
             className={`py-2 px-3 rounded-full font-medium text-xs whitespace-nowrap transition-colors duration-200 ${
               activeTab === tab
                 ? 'bg-blue-500 text-white'

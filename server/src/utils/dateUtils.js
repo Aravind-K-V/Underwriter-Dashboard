@@ -32,7 +32,7 @@ export function parseFlexibleDate(dateInput) {
     const date = new Date(dateInput);
     return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   } catch (error) {
-    console.error('Date parsing error:', error);
+    console.error('[DateUtils][Parse] Date parsing error:', error);
     return null;
   }
 }
@@ -47,7 +47,7 @@ export function compareFlexibleDates(date1, date2) {
       input2: date2,
       parsed1: d1 ? d1.toISOString().split('T')[0] : null,
       parsed2: d2 ? d2.toISOString().split('T')[0] : null
-    });
+    }, { level: 'debug' });
     
     if (!d1 || !d2) {
       return { match: false, confidence: 0.0 };
@@ -71,7 +71,7 @@ export function compareFlexibleDates(date1, date2) {
       sameDay,
       sameMonth,
       sameYear
-    });
+    }, { level: 'debug' });
     
     if (daysDiff === 1) {
       return { match: true, confidence: 0.95 };
@@ -83,7 +83,7 @@ export function compareFlexibleDates(date1, date2) {
       return { match: false, confidence: 0.0 };
     }
   } catch (error) {
-    console.error('Flexible date comparison error:', error);
+    console.error('[DateUtils][Compare] Flexible date comparison error:', error);
     return { match: false, confidence: 0.0 };
   }
 }

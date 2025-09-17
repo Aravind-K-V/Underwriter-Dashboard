@@ -17,9 +17,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS Configuration
+//  CORS Configuration
 const corsOptions = {
-  origin: ['http://13.232.45.218:3000', 'http://13.232.45.218:5173'],
+  origin: ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -40,15 +40,15 @@ prettyLog('Starting server with configuration', {
   USE_SENDGRID: process.env.USE_SENDGRID || 'false',
   PORT: PORT,
   CORS_ORIGINS: corsOptions.origin
-});
+}, { level: 'info' });
 
 // Debug: Verify route imports
-console.log('Route imports verification:');
-console.log('- MedicalProcessingRoutes type:', typeof MedicalProcessingRoutes);
-console.log('- MedicalProcessingRoutes available:', MedicalProcessingRoutes ? 'Yes' : 'No');
-console.log('- underwritingRoutes available:', underwritingRoutes ? 'Yes' : 'No');
+console.info('[Server][Startup] Route imports verification started');
+console.debug('[Server][Startup] MedicalProcessingRoutes type:', typeof MedicalProcessingRoutes);
+console.debug('[Server][Startup] MedicalProcessingRoutes available:', MedicalProcessingRoutes ? 'Yes' : 'No');
+console.debug('[Server][Startup] UnderwritingRoutes available:', underwritingRoutes ? 'Yes' : 'No');
 
-// ✅ FIXED: Mount routes with proper namespacing
+//  FIXED: Mount routes with proper namespacing
 app.use('/api', authRoutes);
 app.use('/api', customerRoutes);
 app.use('/api', documentRoutes);
@@ -57,8 +57,11 @@ app.use('/api/medical-document-processing', MedicalProcessingRoutes);
 app.use('/api', proposerRoutes);
 app.use('/api/underwriting', underwritingRoutes);
 
-// ✅ Test endpoint to verify CORS is working
+console.info('[Server][Routes] All API routes mounted successfully');
+
+//  Test endpoint to verify CORS is working
 app.get('/api/test', (req, res) => {
+  console.info('[Server][CORS] Test endpoint accessed');
   res.json({ 
     message: 'CORS is working!', 
     timestamp: new Date().toISOString() 
@@ -67,6 +70,7 @@ app.get('/api/test', (req, res) => {
 
 // Debug route to list all available endpoints
 app.get('/debug/routes', (req, res) => {
+  console.info('[Server][Debug] Routes listing requested');
   const routes = [];
   
   function extractRoutes(stack, basePath = '') {
@@ -93,6 +97,8 @@ app.get('/debug/routes', (req, res) => {
   
   extractRoutes(app._router.stack);
   
+  console.debug('[Server][Debug] Routes extracted:', { totalRoutes: routes.length });
+  
   res.json({ 
     message: 'Available routes in the application',
     routes: routes.sort((a, b) => a.path.localeCompare(b.path)),
@@ -102,9 +108,9 @@ app.get('/debug/routes', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  prettyLog(`Server started successfully`, {
+  prettyLog('Server started successfully', {
     port: PORT,
-    url: `http://13.232.45.218:${PORT}`,
+    url: `http://localhost:${PORT}`,
     timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
     corsEnabled: true,
     routes: {
@@ -116,5 +122,9 @@ app.listen(PORT, () => {
       proposers: '/api',
       underwriting: '/api/underwriting'
     }
-  });
+  }, { level: 'info' });
+  
+  console.info('[Server][Startup] Server initialized successfully on port', PORT);
+  console.info('[Server][Startup] All middleware and routes configured');
+  console.info('[Server][Startup] Ready to accept incoming requests');
 });

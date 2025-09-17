@@ -2,7 +2,7 @@
 // A reusable React component that serves as the main layout for authentication pages in the Underwriter Dashboard, integrating a header, left section, right section, and footer.
 
 // Import required dependency
-import React from 'react';
+import React, { useEffect } from 'react';
 // Import custom components
 import LeftSection from './LeftSection';
 import Footer from './Footer';
@@ -10,6 +10,25 @@ import Header from './Header';
 
 // Define the Layout component, accepting dynamic RightComponent and CustomHeader props
 const Layout = ({ RightComponent, CustomHeader }) => {
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[UI][Layout] Authentication layout mounted');
+    
+    return () => {
+      console.debug('[UI][Layout] Authentication layout unmounting');
+    };
+  }, []);
+
+  // Log when props change
+  useEffect(() => {
+    console.debug('[UI][Layout] Layout props updated:', { 
+      hasCustomHeader: !!CustomHeader,
+      customHeaderName: CustomHeader?.name || 'Default Header',
+      hasRightComponent: !!RightComponent,
+      rightComponentName: RightComponent?.name || 'Anonymous Component'
+    });
+  }, [RightComponent, CustomHeader]);
+
   return (
     // Main container with full-screen height and light blue background
     <div className="min-h-screen bg-blue-50 overflow-hidden">

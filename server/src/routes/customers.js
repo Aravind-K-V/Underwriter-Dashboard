@@ -6,7 +6,8 @@ const router = express.Router();
 
 // Get customers with rule engine data
 router.get('/customers', async (req, res) => {
-  prettyLog('Customers list requested');
+  console.info('[Customers][List] Customers list requested');
+  prettyLog('Customers list requested successfully', null, { level: 'info' });
   
   try {
     const { status } = req.query;
@@ -36,7 +37,7 @@ router.get('/customers', async (req, res) => {
       if (status === 'Pending') {
         // Show only applications with "Pending" status
         query += ' AND ur.status = $1';
-        params.push('Pending');
+        params.push('Documents Uploaded');
       } else {
         // Handle other specific statuses (Approved, Rejected, etc.)
         query += ' AND ur.status = $1';
@@ -46,23 +47,29 @@ router.get('/customers', async (req, res) => {
 
     const result = await pool.query(query, params);
     
-    prettyLog('Customers query result', {
+    console.debug('[Customers][List] Customers query completed successfully:', { totalCustomers: result.rows.length, status: status || 'All' });
+    prettyLog('Customers query completed successfully', {
       totalCustomers: result.rows.length,
       status: status || 'All',
       customers: result.rows.length <= 5 ? result.rows : result.rows.slice(0, 5).concat([{ summary: `... and ${result.rows.length - 5} more` }])
-    });
+    }, { level: 'info' });
     
     res.json(result.rows);
   } catch (error) {
-    prettyLog('Customers query failed', { error: error.message });
+    console.error('[Customers][List] Customers query failed:', error.message);
+    prettyLog('Customers query failed', { error: error.message }, { level: 'error' });
     res.status(500).send('Internal Server Error');
   }
 });
-// ✅ NEW: Update proposal status
+
+//  NEW: Update proposal status
 router.patch('/proposal/:proposer_id/status', async (req, res) => {
   try {
     const { proposer_id } = req.params;
     const { status } = req.body;
+    
+    console.info('[Customers][StatusUpdate] Updating proposal status:', { proposer_id, status });
+    prettyLog('Updating proposal status', { proposer_id, status }, { level: 'info' });
     
     const query = `
       UPDATE Underwriting_Requests 
@@ -76,21 +83,28 @@ router.patch('/proposal/:proposer_id/status', async (req, res) => {
     const result = await pool.query(query, [status, proposer_id]);
     
     if (result.rows.length === 0) {
+      console.warn('[Customers][StatusUpdate] Proposal not found for status update:', proposer_id);
+      prettyLog('Proposal not found for status update', { proposer_id }, { level: 'warn' });
       return res.status(404).json({ error: 'Proposal not found' });
     }
     
-    prettyLog('Proposal status updated', { proposer_id, status });
+    console.info('[Customers][StatusUpdate] Proposal status updated successfully:', { proposer_id, status });
+    prettyLog('Proposal status updated successfully', { proposer_id, status }, { level: 'info' });
     res.json({ success: true, updatedRecord: result.rows[0] });
   } catch (error) {
-    console.error('Error updating proposal status:', error);
+    console.error('[Customers][StatusUpdate] Error updating proposal status:', error.message);
+    prettyLog('Error updating proposal status', { error: error.message }, { level: 'error' });
     res.status(500).json({ error: 'Failed to update proposal status' });
   }
 });
 
-// ✅ NEW: Get rule engine data for specific proposer
+//  NEW: Get rule engine data for specific proposer
 router.get('/review-flags/:proposer_id', async (req, res) => {
   try {
     const { proposer_id } = req.params;
+    
+    console.info('[Customers][ReviewFlags] Fetching review flags for proposer:', proposer_id);
+    prettyLog('Fetching review flags for proposer', { proposer_id }, { level: 'info' });
     
     const query = `
       SELECT 
@@ -106,9 +120,18 @@ router.get('/review-flags/:proposer_id', async (req, res) => {
     
     const result = await pool.query(query, [proposer_id]);
     
+    if (result.rows.length === 0) {
+      console.warn('[Customers][ReviewFlags] No review flags found for proposer:', proposer_id);
+      prettyLog('No review flags found for proposer', { proposer_id }, { level: 'warn' });
+    } else {
+      console.debug('[Customers][ReviewFlags] Review flags retrieved successfully:', { proposer_id, flags: result.rows[0] });
+      prettyLog('Review flags retrieved successfully', { proposer_id, flags: result.rows[0] }, { level: 'info' });
+    }
+    
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching review flags:', error);
+    console.error('[Customers][ReviewFlags] Error fetching review flags:', error.message);
+    prettyLog('Error fetching review flags', { proposer_id, error: error.message }, { level: 'error' });
     res.status(500).json({ error: 'Failed to fetch review flags' });
   }
 });

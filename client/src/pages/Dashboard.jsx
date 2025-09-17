@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMediaQuery } from 'react-responsive';
 import SideNavbar from '../components/SideNavbar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
@@ -7,7 +7,7 @@ import DashboardCustomerTable from '../components/dashboard/DashboardCustomerTab
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  // ✅ RESPONSIVE: Enhanced responsive breakpoints
+  //  RESPONSIVE: Enhanced responsive breakpoints
   const isLargeDesktop = useMediaQuery({ minWidth: 1440 });
   const isDesktop = useMediaQuery({ minWidth: 1200, maxWidth: 1439 });
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1199 });
@@ -22,13 +22,19 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Pending');
   const navigate = useNavigate();
 
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[Dashboard][Lifecycle] Dashboard component mounted');
+  }, []);
+
   const handleLogout = () => {
+    console.info('[Dashboard][Logout] User logout initiated');
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('user');
     navigate('/login');
   };
 
-  // ✅ RESPONSIVE: Dynamic spacing calculations
+  //  RESPONSIVE: Dynamic spacing calculations
   const getMainPadding = () => {
     if (isSmallMobile) return '8px';
     if (isMobile) return '12px';
@@ -55,12 +61,12 @@ const Dashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-[#F3F5F9] relative overflow-hidden">
-      {/* ✅ RESPONSIVE: Sidebar container */}
+      {/*  RESPONSIVE: Sidebar container */}
       <div className="flex-shrink-0">
         <SideNavbar />
       </div>
 
-      {/* ✅ RESPONSIVE: Main content with dynamic spacing */}
+      {/*  RESPONSIVE: Main content with dynamic spacing */}
       <main
         className="flex-1 relative z-10 w-full"
         style={{ 
@@ -69,17 +75,17 @@ const Dashboard = () => {
           padding: getMainPadding(),
           paddingBottom: `calc(${getMainPadding()} * 2)`, // Extra bottom padding
           minHeight: '100vh',
-          // ✅ Ensure content doesn't get cut off
+          //  Ensure content doesn't get cut off
           overflowX: 'hidden',
           overflowY: 'auto'
         }}
       >
-        {/* ✅ RESPONSIVE: Header with spacing */}
+        {/*  RESPONSIVE: Header with spacing */}
         <div style={{ marginBottom: getSpacing() }}>
           <DashboardHeader 
             onLogout={handleLogout} 
             activeTab={activeTab}
-            // ✅ Pass responsive props
+            //  Pass responsive props
             isSmallMobile={isSmallMobile}
             isMobile={isMobile}
             isTablet={isTablet}
@@ -87,12 +93,12 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* ✅ RESPONSIVE: Tabs section with spacing */}
+        {/*  RESPONSIVE: Tabs section with spacing */}
         <div style={{ marginBottom: getSpacing() }}>
           <DashboardTabsSection 
             activeTab={activeTab} 
             setActiveTab={setActiveTab}
-            // ✅ Pass responsive props
+            //  Pass responsive props
             isSmallMobile={isSmallMobile}
             isMobile={isMobile}
             isTablet={isTablet}
@@ -100,12 +106,12 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* ✅ RESPONSIVE: Customer table */}
+        {/*  RESPONSIVE: Customer table */}
         <div>
           <DashboardCustomerTable 
             activeTab={activeTab} 
             sidebarOpen={sidebarOpen}
-            // ✅ Pass responsive props
+            //  Pass responsive props
             isSmallMobile={isSmallMobile}
             isMobile={isMobile}
             isSmallTablet={isSmallTablet}
@@ -117,7 +123,7 @@ const Dashboard = () => {
         </div>
       </main>
 
-      {/* ✅ RESPONSIVE: Watermark with proper sizing and positioning */}
+      {/*  RESPONSIVE: Watermark with proper sizing and positioning */}
       <img
         src="../src/assets/underwriter-dashboard-icons/watermark.svg"
         alt="Watermark"

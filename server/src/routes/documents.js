@@ -8,7 +8,8 @@ const router = express.Router();
 
 // Fetch all documents
 router.get('/documents', async (req, res) => {
-  prettyLog('Documents list requested');
+  console.info('[Documents][List] Documents list requested');
+  prettyLog('Documents list requested successfully', null, { level: 'info' });
 
   try {
     const query = `
@@ -41,10 +42,13 @@ router.get('/documents', async (req, res) => {
         border: doc.validated ? '#10B981' : '#91CAFF',
       },
     }));
-    console.log('Mapped all documents:', documents);
+    
+    console.debug('[Documents][List] All documents mapped successfully:', { totalDocuments: documents.length });
+    prettyLog('All documents mapped successfully', { totalDocuments: documents.length }, { level: 'info' });
     res.json(documents);
   } catch (error) {
-    prettyLog('Documents query failed', { error: error.message });
+    console.error('[Documents][List] Documents query failed:', error.message);
+    prettyLog('Documents query failed', { error: error.message }, { level: 'error' });
     res.status(500).json({ error: `Internal Server Error: ${error.message}` });
   }
 });
@@ -52,7 +56,7 @@ router.get('/documents', async (req, res) => {
 // Fetch documents by proposer_id
 router.get('/documents/:proposer_id', async (req, res) => {
   const { proposer_id } = req.params;
-  console.log('Fetching documents for proposer_id:', proposer_id);
+  console.info('[Documents][ByProposer] Fetching documents for proposer_id:', proposer_id);
 
   try {
     const query = `
@@ -74,9 +78,10 @@ router.get('/documents/:proposer_id', async (req, res) => {
     `;
 
     const result = await pool.query(query, [proposer_id]);
-    console.log(`Found ${result.rows.length} documents for proposer ${proposer_id}`);
+    console.debug('[Documents][ByProposer] Documents query completed:', { proposer_id, documentCount: result.rows.length });
 
     if (result.rows.length === 0) {
+      console.warn('[Documents][ByProposer] No documents found for proposer:', proposer_id);
       return res.status(404).json({ message: `No documents found for proposer ${proposer_id}` });
     }
 
@@ -86,7 +91,7 @@ router.get('/documents/:proposer_id', async (req, res) => {
       document_type: doc.document_type,
       checklist: doc.validated ? 'Verified' : 'Processing',
       metadata: doc.extracted_data || 'Pending',
-      extracted_data: doc.extracted_data,  // ✅ Add this line
+      extracted_data: doc.extracted_data,  //  Add this line
       validated: doc.validated,
       status: doc.validated ? 'Processed and Verified' : 'Pending',
       source_url: doc.source_url,
@@ -103,33 +108,39 @@ router.get('/documents/:proposer_id', async (req, res) => {
       },
     }));
 
-    console.log('Mapped documents for proposer:', documents);
+    console.debug('[Documents][ByProposer] Documents mapped successfully for proposer:', { proposer_id, documentCount: documents.length });
+    prettyLog('Documents mapped successfully for proposer', { proposer_id, documentCount: documents.length }, { level: 'info' });
     res.json(documents);
   } catch (error) {
-    console.error('Error fetching documents for proposer:', error.stack);
+    console.error('[Documents][ByProposer] Error fetching documents for proposer:', error.message);
+    prettyLog('Error fetching documents for proposer', { proposer_id, error: error.message }, { level: 'error' });
     res.status(500).json({ error: `Internal Server Error: ${error.message}` });
   }
 });
 
 // Fetch document pre-signed URL by document ID
 router.get('/documents/preview/:id', async (req, res) => {
-  console.log('Document preview function called with params:', req.params);
   const { id } = req.params;
-  prettyLog('Document URL request', { documentId: id });
+  console.info('[Documents][Preview] Document preview function called with params:', req.params);
+  prettyLog('Document URL request received', { documentId: id }, { level: 'info' });
 
   try {
     const query = 'SELECT source_url, document_type FROM documents WHERE id = $1';
     const result = await pool.query(query, [id]);
 
     if (result.rows.length === 0) {
+      console.warn('[Documents][Preview] Document not found:', id);
+      prettyLog('Document not found', { documentId: id }, { level: 'warn' });
       return res.status(404).json({ error: `Document with ID ${id} not found` });
     }
 
     const { source_url, document_type } = result.rows[0];
-    prettyLog('Document found', { documentId: id, document_type, source_url });
+    console.debug('[Documents][Preview] Document found:', { documentId: id, document_type, source_url });
+    prettyLog('Document found successfully', { documentId: id, document_type, source_url }, { level: 'info' });
 
     if (!source_url || !source_url.startsWith('s3://')) {
-      prettyLog('Invalid S3 URL', { documentId: id, source_url });
+      console.warn('[Documents][Preview] Invalid S3 URL:', { documentId: id, source_url });
+      prettyLog('Invalid S3 URL detected', { documentId: id, source_url }, { level: 'warn' });
       return res.status(400).json({ error: `Invalid S3 URL for document ${id}: ${source_url}` });
     }
 
@@ -137,17 +148,21 @@ router.get('/documents/preview/:id', async (req, res) => {
     const key = source_url.split('/').slice(3).join('/');
 
     if (!bucketName || !key) {
-      prettyLog('Failed to parse S3 URL', { documentId: id, source_url });
+      console.error('[Documents][Preview] Failed to parse S3 URL:', { documentId: id, source_url });
+      prettyLog('Failed to parse S3 URL', { documentId: id, source_url }, { level: 'error' });
       return res.status(400).json({ error: `Failed to parse S3 URL for document ${id}` });
     }
-    console.log('Generating pre-signed URL for preview:', { id, document_type, bucketName, key });
+    
+    console.info('[Documents][Preview] Generating pre-signed URL for preview:', { id, document_type, bucketName, key });
     const command = new GetObjectCommand({ Bucket: bucketName, Key: key });
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
-    prettyLog('Pre-signed URL generated successfully', { documentId: id });
+    console.info('[Documents][Preview] Pre-signed URL generated successfully:', { documentId: id });
+    prettyLog('Pre-signed URL generated successfully', { documentId: id }, { level: 'info' });
     res.json({ pdfUrl: presignedUrl });
   } catch (error) {
-    console.error('Error fetching document preview URL:', error.stack);
+    console.error('[Documents][Preview] Error fetching document preview URL:', error.message);
+    prettyLog('Error fetching document preview URL', { documentId: id, error: error.message }, { level: 'error' });
     res.status(500).json({ error: `Internal Server Error: ${error.message}` });
   }
 });

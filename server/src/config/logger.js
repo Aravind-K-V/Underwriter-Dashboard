@@ -13,11 +13,11 @@ const sessionLogsDir = path.join(logsDir, `session-${sessionTimestamp}`);
 
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
-  console.log('📁 Created logs directory');
+  console.info('[Logger][Config] Created logs directory');
 }
 if (!fs.existsSync(sessionLogsDir)) {
   fs.mkdirSync(sessionLogsDir);
-  console.log(`📁 Created session logs directory: ${sessionLogsDir}`);
+  console.info('[Logger][Config] Created session logs directory:', sessionLogsDir);
 }
 
 // Archive existing top-level log files to session folder
@@ -36,10 +36,10 @@ logFiles.forEach((file) => {
   try {
     if (fs.existsSync(current)) {
       fs.renameSync(current, archive);
-      console.log(`📦 Archived log file: ${current} → ${archive}`);
+      console.debug('[Logger][Config] Archived log file:', { from: current, to: archive });
     }
   } catch (error) {
-    console.warn(`⚠️ Failed to archive log file ${current}: ${error.message}`);
+    console.warn('[Logger][Config] Failed to archive log file:', { file: current, error: error.message });
   }
 });
 
@@ -62,7 +62,7 @@ const customLevels = {
     trace: 'grey',
   },
   emojis: {
-    error: '❌',
+    error: '',
     warn: '⚠️',
     info: 'ℹ️',
     audit: '🔍',
@@ -209,5 +209,9 @@ const prettyLog = (message, data = null, options = {}) => {
     logger.log(level, message, metadata);
   }
 };
+
+console.info('[Logger][Config] Winston logger configured successfully with custom levels and daily rotation');
+console.info('[Logger][Config] Log files will be stored in:', sessionLogsDir);
+console.info('[Logger][Config] Environment mode:', isProduction ? 'production' : 'development');
 
 export { logger, prettyLog };

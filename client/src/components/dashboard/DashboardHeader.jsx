@@ -9,7 +9,7 @@ import HomeIcon from '../../assets/underwriter-dashboard-icons/home.svg';
 import ChevronRightIcon from '../../assets/underwriter-dashboard-icons/chevron-right.svg';
 
 const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
-  // ✅ RESPONSIVE: Enhanced responsive breakpoints
+  //  RESPONSIVE: Enhanced responsive breakpoints
   const isLargeDesktop = useMediaQuery({ minWidth: 1440 });
   const isDesktop = useMediaQuery({ minWidth: 1200, maxWidth: 1439 });
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1199 });
@@ -29,54 +29,51 @@ const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
   // Enhanced user data loading from user_login table
   useEffect(() => {
     const loadUserDataFromUserLogin = async () => {
-      console.log('[USER_LOGIN] Starting to load user data from user_login table...');
+      console.info('[Dashboard][Header] Loading user data from user_login table');
 
       // Try localStorage first
       const storedUser = localStorage.getItem('user');
-      console.log('[USER_LOGIN] Raw data from localStorage:', storedUser);
+      console.debug('[Dashboard][Header] Raw data from localStorage:', { hasData: !!storedUser });
 
       if (storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser);
-          console.log('[USER_LOGIN] Parsed user data:', parsedUser);
-          console.log('[USER_LOGIN] Name from localStorage:', parsedUser?.name);
-          console.log('[USER_LOGIN] Email from localStorage:', parsedUser?.email_id);
+          console.debug('[Dashboard][Header] Parsed user data:', { hasName: !!parsedUser?.name, hasEmail: !!parsedUser?.email_id });
 
           if (parsedUser?.name && parsedUser?.email_id) {
-            console.log('[USER_LOGIN] Complete user data found in localStorage');
+            console.info('[Dashboard][Header] Complete user data found in localStorage');
             setUserData(parsedUser);
             return;
           } else {
-            console.warn('[USER_LOGIN] Incomplete user data in localStorage');
+            console.warn('[Dashboard][Header] Incomplete user data in localStorage');
           }
         } catch (error) {
-          console.error('[USER_LOGIN] Error parsing localStorage data:', error);
+          console.error('[Dashboard][Header] Error parsing localStorage data:', error.message);
         }
       }
 
       // Fallback: fetch directly from user_login table
       const email = storedUser ? JSON.parse(storedUser)?.email_id : null;
       if (email) {
-        console.log('[USER_LOGIN] Fetching user from user_login table for email:', email);
+        console.info('[Dashboard][Header] Fetching user from user_login table for email:', email);
         try {
-          const response = await fetch(`http://13.232.45.218:5000/api/current-user/${encodeURIComponent(email)}`);
+          const response = await fetch(`http://localhost:5000/api/current-user/${encodeURIComponent(email)}`);
 
           if (response.ok) {
             const userFromDB = await response.json();
-            console.log('[USER_LOGIN] Successfully fetched user from user_login table:', userFromDB);
-            console.log('[USER_LOGIN] Name from user_login table:', userFromDB.name);
+            console.info('[Dashboard][Header] Successfully fetched user from user_login table:', { name: userFromDB.name, email: userFromDB.email_id });
 
             setUserData(userFromDB);
             // Update localStorage with fresh data from user_login table
             localStorage.setItem('user', JSON.stringify(userFromDB));
           } else {
-            console.error('[USER_LOGIN] Failed to fetch user from server:', response.status);
+            console.error('[Dashboard][Header] Failed to fetch user from server:', response.status);
           }
         } catch (error) {
-          console.error('[USER_LOGIN] Error fetching user from user_login table:', error);
+          console.error('[Dashboard][Header] Error fetching user from user_login table:', error.message);
         }
       } else {
-        console.error('[USER_LOGIN] No email found, cannot fetch from user_login table');
+        console.error('[Dashboard][Header] No email found, cannot fetch from user_login table');
       }
     };
 
@@ -85,12 +82,12 @@ const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
 
   // Log when activeTab changes for debugging
   useEffect(() => {
-    console.log('[BREADCRUMB] Active tab changed to:', activeTab);
+    console.debug('[Dashboard][Header] Active tab changed to:', activeTab);
   }, [activeTab]);
 
   // Handle logout
   const handleLogout = () => {
-    console.log('[LOGOUT] Logging out user');
+    console.info('[Dashboard][Header] User logout initiated');
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
     localStorage.removeItem('isAuthenticated');
@@ -119,18 +116,17 @@ const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
 
   // Get user's display name from user_login table
   const getUserDisplayName = () => {
-    console.log('[DISPLAY_NAME] Getting display name...');
-    console.log('[DISPLAY_NAME] Current userData:', userData);
+    console.debug('[Dashboard][Header] Getting display name');
 
     if (userData && userData.name) {
       const fullName = userData.name.trim();
       const firstName = fullName.split(' ')[0];
-      console.log('[DISPLAY_NAME] Name found from user_login - Full:', fullName, 'First:', firstName);
+      console.debug('[Dashboard][Header] Name found from user_login:', { fullName, firstName });
       return firstName;
     }
 
     // Fallback: try localStorage directly
-    console.log('[DISPLAY_NAME] Trying localStorage fallback...');
+    console.debug('[Dashboard][Header] Trying localStorage fallback');
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -138,15 +134,15 @@ const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
         if (parsedUser && parsedUser.name) {
           const fullName = parsedUser.name.trim();
           const firstName = fullName.split(' ')[0];
-          console.log('[DISPLAY_NAME] Name found in localStorage - Full:', fullName, 'First:', firstName);
+          console.debug('[Dashboard][Header] Name found in localStorage:', { fullName, firstName });
           return firstName;
         }
       } catch (error) {
-        console.error('[DISPLAY_NAME] Error in localStorage fallback:', error);
+        console.error('[Dashboard][Header] Error in localStorage fallback:', error.message);
       }
     }
 
-    console.log('[DISPLAY_NAME] No name found, returning "User"');
+    console.debug('[Dashboard][Header] No name found, returning "User"');
     return 'User';
   };
 
@@ -162,7 +158,7 @@ const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
         const parsedUser = JSON.parse(storedUser);
         return parsedUser?.name || 'User';
       } catch (error) {
-        console.error('Error getting full name:', error);
+        console.error('[Dashboard][Header] Error getting full name:', error.message);
       }
     }
 

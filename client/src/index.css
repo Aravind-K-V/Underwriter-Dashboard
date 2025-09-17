@@ -9,17 +9,6 @@
 /* Import Tailwind CSS utility styles (low-level utility classes) */
 @tailwind utilities;
 
-/* Style for the watermark element, typically used as a background overlay */
-@font-face {
-  font-family: 'PP Neue Montreal';
-  src: url('./fonts/PPNeueMontreal-Medium.woff2') format('woff2'),
-       url('./fonts/PPNeueMontreal-Medium.woff') format('woff'),
-       url('./fonts/PPNeueMontreal-Medium.ttf') format('truetype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
 .watermark {
   position: absolute; /* Position the watermark absolutely within its parent */
   right: 0; /* Align to the right edge */

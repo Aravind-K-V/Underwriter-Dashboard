@@ -3,12 +3,26 @@
 import React, { useEffect } from 'react';
 
 const ErrorPopup = ({ message, onClose, type = 'error', duration = 5000 }) => {
+  // Log component lifecycle
   useEffect(() => {
+    console.info('[UI][ErrorPopup] Popup displayed:', { type, message: message.substring(0, 50) + '...', duration });
+    
     if (duration > 0) {
-      const timer = setTimeout(onClose, duration);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(() => {
+        console.debug('[UI][ErrorPopup] Auto-closing popup after timeout');
+        onClose();
+      }, duration);
+      return () => {
+        console.debug('[UI][ErrorPopup] Clearing auto-close timer');
+        clearTimeout(timer);
+      };
     }
-  }, [onClose, duration]);
+  }, [onClose, duration, type, message]);
+
+  const handleClose = () => {
+    console.info('[UI][ErrorPopup] User manually closed popup');
+    onClose();
+  };
 
   const baseStyles = "absolute top-[70px] right-8 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-[9999] max-w-sm";
   const typeStyles = {
@@ -21,7 +35,7 @@ const ErrorPopup = ({ message, onClose, type = 'error', duration = 5000 }) => {
     <div className={`${baseStyles} ${typeStyles[type]}`}>
       <span className="text-sm font-medium flex-1">{message}</span>
       <button
-        onClick={onClose}
+        onClick={handleClose}
         className="text-white hover:text-gray-300 focus:outline-none font-bold text-lg leading-none"
         aria-label="Close notification"
       >

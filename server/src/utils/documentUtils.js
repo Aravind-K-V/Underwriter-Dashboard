@@ -19,9 +19,9 @@ export const ensureProcessingResultsTable = async () => {
       )
     `;
     await pool.query(createTableQuery);
-    prettyLog('Document processing results table ensured');
+    prettyLog('Document processing results table ensured successfully', null, { level: 'info' });
   } catch (error) {
-    prettyLog('Failed to create document_processing_results table', { error: error.message });
+    prettyLog('Failed to create document_processing_results table', { error: error.message }, { level: 'error' });
     throw error;
   }
 };
@@ -125,6 +125,13 @@ export const compareDocumentData = (extractedData, proposerData, documentType) =
   }
 
   const overallScore = fieldsCompared > 0 ? totalScore / fieldsCompared : 0;
+
+  prettyLog('Document comparison completed', {
+    documentType,
+    fieldsCompared,
+    overallScore,
+    comparisons
+  }, { level: 'debug' });
 
   return {
     comparisons,

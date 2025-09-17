@@ -131,7 +131,7 @@ const SideNavbar = () => {
 
   // Handle navigation clicks
   const handleNavClick = (label, route) => {
-    console.log(`${label} clicked`);
+    console.info('[Navigation][SideNavbar] Navigation item clicked:', label);
     
     switch (label.toLowerCase()) {
       case 'dashboard':
@@ -141,10 +141,10 @@ const SideNavbar = () => {
         navigate('/dashboard');
         break;
       case 'claims management':
-        console.log('Claims Management - route to be implemented');
+        console.warn('[Navigation][SideNavbar] Claims Management route not yet implemented');
         break;
       default:
-        console.log(`Navigation for ${label} - route to be implemented`);
+        console.warn('[Navigation][SideNavbar] Route not yet implemented:', label);
         break;
     }
   };

@@ -9,7 +9,7 @@ const PrivateRoute = ({ children }) => {
   // Check authentication status from localStorage
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   // Debug log to track authentication status and current path
-  console.log('PrivateRoute - isAuthenticated:', isAuthenticated, 'Path:', window.location.pathname);
+  console.debug('[Auth][PrivateRoute] Authentication check:', { isAuthenticated, path: window.location.pathname });
   
   // Conditionally render children if authenticated, otherwise redirect to login
   return isAuthenticated ? children : <Navigate to="/login" />;

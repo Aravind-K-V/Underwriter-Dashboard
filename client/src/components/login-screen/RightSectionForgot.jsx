@@ -2,7 +2,7 @@
 // A React component that renders the right section of the forgot password page in the Underwriter Dashboard, allowing users to request a password reset link via email.
 
 // Import required dependencies
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios'; // Library for making HTTP requests
 import { useNavigate } from 'react-router-dom'; // Hook for programmatic navigation
 import ErrorPopup from './ErrorPopup'; // Import the ErrorPopup component
@@ -18,28 +18,45 @@ const RightSectionForgot = () => {
   // Initialize navigation hook
   const navigate = useNavigate();
 
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[Auth][RightSectionForgot] Component mounted');
+  }, []);
+
   // Handle sending the password reset link
   const handleSendResetLink = async () => {
+    console.info('[Auth][RightSectionForgot] Password reset link request initiated:', { email: resetEmail });
+    
     // Validate email input
     if (!resetEmail) {
+      console.warn('[Auth][RightSectionForgot] Email validation failed: empty email');
       setErrorMsg('Email is required');
       return;
     }
 
     try {
+      console.debug('[Auth][RightSectionForgot] Sending password reset request to API');
       // Send request to forgot-password API endpoint
-      const res = await axios.post('http://13.232.45.218:5000/api/forgot-password', {
+      const res = await axios.post('http://localhost:5000/api/forgot-password', {
         email_id: resetEmail, // Match backend expected field name
       });
 
+      console.debug('[Auth][RightSectionForgot] API response received:', { success: res.data.success });
+
       if (res.data.success) {
+        console.info('[Auth][RightSectionForgot] Password reset link sent successfully');
         setResetSuccess(true); // Indicate successful request
         setErrorMsg(''); // Clear any previous errors
-        setTimeout(() => navigate('/login'), 2000); // Navigate to login page after 2 seconds
+        setTimeout(() => {
+          console.info('[Auth][RightSectionForgot] Navigating to login page');
+          navigate('/login');
+        }, 2000); // Navigate to login page after 2 seconds
       } else {
+        console.warn('[Auth][RightSectionForgot] Password reset link request failed:', res.data.message);
         setErrorMsg(res.data.message || 'Failed to send confirmation link'); // Display server error
       }
     } catch (err) {
+      console.error('[Auth][RightSectionForgot] Password reset link request error:', err.response?.data?.message || err.message);
       // Handle network or server errors
       setErrorMsg(err.response?.data?.message || 'Error sending confirmation link');
     }

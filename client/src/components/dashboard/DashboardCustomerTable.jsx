@@ -15,7 +15,7 @@ import EllipsisOutlined from '../../assets/underwriter-dashboard-icons/Vector.sv
 import calendericon from '../../assets/upload_icons/CalendarFilled.svg';
 
 const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
-  // ✅ RESPONSIVE: Enhanced responsive breakpoints
+  //  RESPONSIVE: Enhanced responsive breakpoints
   const isLargeDesktop = useMediaQuery({ minWidth: 1440 });
   const isDesktop = useMediaQuery({ minWidth: 1200, maxWidth: 1439 });
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1199 });
@@ -53,7 +53,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
 
   const navigate = useNavigate();
 
-  // ✅ RESPONSIVE: Update items per page based on screen size
+  //  RESPONSIVE: Update items per page based on screen size
   useEffect(() => {
     if (isSmallMobile) {
       setItemsPerPage(5);
@@ -68,7 +68,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
     }
   }, [isSmallMobile, isMobile, isSmallTablet, isTablet]);
 
-  // ✅ RESPONSIVE: Dynamic spacing calculations
+  //  RESPONSIVE: Dynamic spacing calculations
   const getMainPadding = () => {
     if (isSmallMobile) return 12;
     if (isMobile) return 16;
@@ -91,12 +91,12 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
   // Fetch rule engine data
   const fetchRuleEngineData = async () => {
     try {
-      const response = await fetch('http://13.232.45.218:5000/api/rule-engine-trail', {
+      const response = await fetch('http://localhost:5000/api/rule-engine-trail', {
         headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
-        console.warn('Failed to fetch rule engine data:', response.statusText);
+        console.warn('[Dashboard][CustomerTable] Failed to fetch rule engine data:', response.statusText);
         return {};
       }
 
@@ -113,7 +113,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
 
       return ruleDataMap;
     } catch (error) {
-      console.error('Error fetching rule engine data:', error);
+      console.error('[Dashboard][CustomerTable] Error fetching rule engine data:', error.message);
       return {};
     }
   };
@@ -123,7 +123,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
     const fetchCustomers = async () => {
       try {
         const [customersResponse, ruleData] = await Promise.all([
-          fetch(`http://13.232.45.218:5000/api/customers?status=${encodeURIComponent(activeTab)}`, {
+          fetch(`http://localhost:5000/api/customers?status=${encodeURIComponent(activeTab)}`, {
             headers: { 'Content-Type': 'application/json' },
           }),
           fetchRuleEngineData()
@@ -153,7 +153,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
         setRuleEngineData(ruleData);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching customers:', error.message);
+        console.error('[Dashboard][CustomerTable] Error fetching customers:', error.message);
         setError(`Failed to load customer data: ${error.message}`);
         setLoading(false);
       }
@@ -331,11 +331,11 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
     switch (action) {
       case 'Delete':
         if (window.confirm('Are you sure you want to delete this customer?')) {
-          console.log('Deleting customer:', proposerId);
+          console.info('[Dashboard][CustomerTable] Customer deletion initiated:', proposerId);
         }
         break;
       case 'Preview':
-        console.log('Previewing customer:', proposerId);
+        console.info('[Dashboard][CustomerTable] Customer preview initiated:', proposerId);
         break;
       default:
         break;
@@ -350,10 +350,10 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
     // All statuses (Pending, Approved, Rejected) now navigate to the same page
     const ruleData = ruleEngineData[customer.proposal_number];
 
-    console.log('Rule data for proposal', customer.proposal_number, ':', ruleData);
+    console.debug('[Dashboard][CustomerTable] Rule data for proposal:', { proposal_number: customer.proposal_number, hasRuleData: !!ruleData });
 
     if (!ruleData) {
-      console.warn('No rule engine data found for proposal:', customer.proposal_number);
+      console.warn('[Dashboard][CustomerTable] No rule engine data found for proposal:', customer.proposal_number);
       navigate(`/${customer.proposer_id}/upload?processDocs=true`);
       return;
     }
@@ -361,16 +361,16 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
     const { finreview_required, mc_required } = ruleData;
 
     if (finreview_required === true && mc_required === true) {
-      console.log('Both financial and medical review required');
+      console.info('[Dashboard][CustomerTable] Both financial and medical review required');
       navigate(`/${customer.proposer_id}/upload?processDocs=true&tab=financial`);
     } else if (finreview_required === false && mc_required === true) {
-      console.log('Only medical review required');
+      console.info('[Dashboard][CustomerTable] Only medical review required');
       navigate(`/${customer.proposer_id}/upload?processDocs=true&tab=medical&hideFinancial=true`);
     } else if (finreview_required === true && mc_required === false) {
-      console.log('Only financial review required');
+      console.info('[Dashboard][CustomerTable] Only financial review required');
       navigate(`/${customer.proposer_id}/upload?processDocs=true&tab=financial&hideMedical=true`);
     } else {
-      console.log('No specific review requirements');
+      console.info('[Dashboard][CustomerTable] No specific review requirements');
       navigate(`/${customer.proposer_id}/upload?processDocs=true`);
     }
   };
@@ -414,11 +414,11 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
         style={{ 
           padding: `${getMainPadding()}px`,
           margin: 0,
-          // ✅ NEW: Dynamic minimum height to fill the screen
+          //  NEW: Dynamic minimum height to fill the screen
           minHeight: isMobileOrSmaller ? 'calc(100vh - 160px)' : 
                      isTablet ? 'calc(100vh - 180px)' : 
                      'calc(100vh - 200px)',
-          // ✅ NEW: Ensure content is properly spaced
+          //  NEW: Ensure content is properly spaced
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -433,7 +433,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
             {activeTab}
           </h2>
 
-          {/* ✅ FIX: Improved filter/sort container */}
+          {/*  FIX: Improved filter/sort container */}
           <div className={`flex ${isMobileOrSmaller ? 'flex-col gap-2 w-full' : 'flex-row items-center gap-[11px]'
             }`}>
 
@@ -516,9 +516,9 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
           </div>
         </div>
 
-             {/* ✅ UPDATED: Table with scrollable body only */}
+        {/*  UPDATED: Table with extended height that fills remaining space */}
         <div className="flex-1 flex flex-col">
-          {/* ✅ RESPONSIVE: Table Header with dynamic sizing */}
+          {/*  RESPONSIVE: Table Header with dynamic sizing */}
           {!isMobileOrSmaller ? (
             // Desktop Table Header - This stays fixed
             <div className="flex flex-row items-center w-full rounded-[12px] border-b border-[rgba(15,1,42,0.1)] bg-gradient-to-r from-[#7AA5FF] via-[#3371F2] to-[#0F1522] text-white text-sm font-medium leading-[140%] overflow-hidden sticky top-[110px] z-10"
@@ -673,7 +673,6 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
           </div>
         </div>
 
-
         {/* ✅ RESPONSIVE: Pagination with mobile layout - Fixed position at bottom */}
         <div className={`mt-6 bg-white border-t border-gray-200 pt-4 flex-shrink-0`}>
           <div className={`flex ${isMobileOrSmaller ? 'flex-col gap-4' : 'flex-row justify-between items-center'
@@ -708,7 +707,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
               </div>
             </div>
 
-            {/* ✅ FIX: Navigation section with better spacing */}
+            {/*  FIX: Navigation section with better spacing */}
             <div className={`flex ${isMobileOrSmaller ? 'flex-col gap-3' : 'flex-row items-center gap-2'
               }`}>
               {/* Mobile pagination info */}
@@ -773,7 +772,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
       </div>
 
       {/* All the dropdown portals remain the same... */}
-      {/* ✅ RESPONSIVE: Filter Dropdown Portal with mobile sizing */}
+      {/*  RESPONSIVE: Filter Dropdown Portal with mobile sizing */}
       {showFilterDropdown && createPortal(
         <div
           className={`fixed bg-white shadow-xl rounded-md border border-[#E5ECFB] max-h-[400px] overflow-y-auto font-['PP Neue Montreal'] ${isMobileOrSmaller ? 'w-[200px]' : 'w-[240px]'
@@ -808,7 +807,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
         document.body
       )}
 
-      {/* ✅ RESPONSIVE: Sort Dropdown Portal with mobile sizing */}
+      {/*  RESPONSIVE: Sort Dropdown Portal with mobile sizing */}
       {showSortDropdown && createPortal(
         <div
           className={`fixed bg-white shadow-xl rounded-md border border-[#E5ECFB] max-h-[200px] overflow-y-auto font-['PP Neue Montreal'] ${isMobileOrSmaller ? 'w-36' : 'w-44'
@@ -833,7 +832,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
         document.body
       )}
 
-      {/* ✅ RESPONSIVE: Filter Date Picker Portal with mobile sizing */}
+      {/*  RESPONSIVE: Filter Date Picker Portal with mobile sizing */}
       {showDatePicker && createPortal(
         <div
           ref={datePickerRef}
@@ -876,7 +875,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
         document.body
       )}
 
-      {/* ✅ RESPONSIVE: Sort Date Picker Portal with mobile sizing */}
+      {/*  RESPONSIVE: Sort Date Picker Portal with mobile sizing */}
       {showSortDatePicker && createPortal(
         <div
           ref={sortDatePickerRef}

@@ -1,0 +1,59 @@
+# Finance Score rule configuration
+#
+# This file defines the component scoring bands, their aggregation weights,
+# and the decision policies (risk category, underwriting flag). Adjust values
+# as business requirements evolve; the engine will pick changes without code edits.
+
+# Aggregation weights (must sum to 1.0). Higher weight => higher influence.
+weights:
+  sar_income_ratio: 0.5        # Sum Assured / Annual Income
+  tsar_income_ratio: 0.25      # (Sum Assured + Other Insurance SA) / Annual Income
+  premium_income_ratio: 0.25   # Annual Premium / Annual Income
+
+# Component bands map a derived ratio to a score in [1..5].
+# Bands are evaluated in order and should be gapless/non-overlapping.
+components:
+  sar_income_ratio:
+    - { max: 2, score: 1, inclusive_max: false }  # < 2
+    - { min: 2, max: 3, score: 2 }                # [2, 3]
+    - { min: 3, max: 4, score: 3 }                # (3, 4]
+    - { min: 4, max: 5, score: 4 }                # (4, 5]
+    - { min: 5, score: 5 }                        # > 5
+  tsar_income_ratio:
+    - { max: 2, score: 1, inclusive_max: false }
+    - { min: 2, max: 3, score: 2 }
+    - { min: 3, max: 4, score: 3 }
+    - { min: 4, max: 5, score: 4 }
+    - { min: 5, score: 5 }
+  premium_income_ratio:
+    - { max: 0.05, score: 1, inclusive_max: false }
+    - { min: 0.05, max: 0.1, score: 2 }
+    - { min: 0.1, max: 0.15, score: 3 }
+    - { min: 0.15, max: 0.2, score: 4 }
+    - { min: 0.2, score: 5 }
+
+# Decision layer maps final score to category and prescribes underwriting action
+# based on combinations of the final score and component scores.
+decisions:
+  risk_categories:
+    - { score: 1, label: "Safe" }
+    - { score: 2, label: "Low Risk" }
+    - { score: 3, label: "Medium Risk" }
+    - { score: 4, label: "High Risk" }
+    - { score: 5, label: "Reject" }
+  underwriting_flags:
+    # Score 1: always pass
+    - when: { final_score_in: [1] }
+      flag: "Pass"
+    # Score 2: pass if premium burden not excessive
+    - when: { final_score_in: [2], premium_score_in: [1,2,3,4] }
+      flag: "Pass"
+    # Score 3: pass only when both premium and SAR pressures are moderate
+    - when: { final_score_in: [3], premium_score_in: [1,2,3], sar_score_in: [1,2,3] }
+      flag: "Pass"
+    # Score 4: require manual review
+    - when: { final_score_in: [4] }
+      flag: "Manual Review"
+    # Score 5: decline
+    - when: { final_score_in: [5] }
+      flag: "Decline" 

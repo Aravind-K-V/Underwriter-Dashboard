@@ -27,7 +27,7 @@ import tickIconUrl from '../../assets/underwriter-dashboard-icons/tick.svg';
 
 
 // Environment variables - Updated for Vite
-const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://13.232.45.218:5000';
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5000';
 
 const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPresent, reviewFlags }) => {
   // Media query hooks for responsive design
@@ -72,10 +72,10 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
   const [modalType, setModalType] = useState(null); // "approve", "reject", "investigate"
   const [modalStatus, setModalStatus] = useState('confirm'); // "confirm" | "loading" | "success" | "error"
   const [modalError, setModalError] = useState('');
-  const [modalMessage, setModalMessage] = useState(''); // ✅ NEW: Required message field
-  // ✅ ADD THIS REF
+  const [modalMessage, setModalMessage] = useState(''); //  NEW: Required message field
+  //  ADD THIS REF
   const scrollContainerRef = useRef(null);
-  // ✅ ADD THESE NEW STATE VARIABLES:
+  //  ADD THESE NEW STATE VARIABLES:
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -195,39 +195,39 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
     }
   ];
 
-  // ✅ UPDATED: Function to fetch current underwriting request status
+  //  UPDATED: Function to fetch current underwriting request status
   const fetchCurrentStatus = async () => {
     if (!proposer_id) {
-      console.log('[STATUS] No proposer_id found in URL params');
+      console.debug('[DocumentUpload][MedicalTable] No proposer_id found in URL params');
       setCurrentStatus("");
       return;
     }
 
     try {
-      console.log('[STATUS] Fetching underwriting status for proposer_id:', proposer_id);
+      console.info('[DocumentUpload][MedicalTable] Fetching underwriting status for proposer_id:', proposer_id);
 
       const response = await fetch(`${NODE_API_URL}/api/underwriting/underwriting-status/${proposer_id}`);
 
       if (response.ok) {
         const statusData = await response.json();
-        console.log('[STATUS] Fetched status from underwriting_requests:', statusData);
+        console.debug('[DocumentUpload][MedicalTable] Fetched status from underwriting_requests:', statusData);
 
-        // ✅ FIXED: Ensure both status and message are set properly
+        //  FIXED: Ensure both status and message are set properly
         setCurrentStatus(statusData.status || "");
         setModalMessage(statusData.message || ''); // This should contain the actual message
-        console.log('[STATUS] Current status set to:', statusData.status);
-        console.log('[STATUS] Current message set to:', statusData.message); // Add this log
+        console.debug('[DocumentUpload][MedicalTable] Current status set to:', statusData.status);
+        console.debug('[DocumentUpload][MedicalTable] Current message set to:', statusData.message);
       } else {
-        console.error('[STATUS] Failed to fetch status:', response.status, response.statusText);
+        console.error('[DocumentUpload][MedicalTable] Failed to fetch status:', response.status, response.statusText);
         setCurrentStatus('NOT RETRIEVED');
       }
     } catch (error) {
-      console.error('[STATUS] Error fetching underwriting status:', error);
+      console.error('[DocumentUpload][MedicalTable] Error fetching underwriting status:', error.message);
       setCurrentStatus('NOT RETRIEVED');
     }
   };
 
-  // ✅ UPDATED: Function to update underwriting request status 
+  //  UPDATED: Function to update underwriting request status 
   const updateUnderwritingStatus = async (newStatus, message) => {
     if (!proposer_id) {
       alert('Proposer ID not found. Please refresh and try again.');
@@ -237,7 +237,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
     setStatusUpdateLoading(true);
 
     try {
-      console.log('🔧 Updating status to:', newStatus, 'with message:', message, 'for proposer:', proposer_id);
+      console.info('[DocumentUpload][MedicalTable] Updating status:', { status: newStatus, message, proposer_id });
 
       const response = await fetch(`${NODE_API_URL}/api/underwriting/underwriting-requests/${proposer_id}/status`, {
         method: 'PATCH',
@@ -246,25 +246,25 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
         },
         body: JSON.stringify({
           status: newStatus,
-          message: message // ✅ Include the message in the request
+          message: message //  Include the message in the request
         })
       });
 
-      console.log('📡 Update response status:', response.status);
+      console.debug('[DocumentUpload][MedicalTable] Update response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
 
-        // ✅ UPDATED: Don't reload, just update state and show success message
+        //  UPDATED: Don't reload, just update state and show success message
         const statusMessages = {
-          'Approved': 'Application approved successfully! ✅',
-          'Rejected': 'Application rejected. ❌',
+          'Approved': 'Application approved successfully! ',
+          'Rejected': 'Application rejected. ',
           'Needs Investigation': 'Application marked for investigation. 🔍'
         };
 
-        console.log('✅ Status updated successfully:', data);
+        console.info('[DocumentUpload][MedicalTable] Status updated successfully:', { hasData: !!data });
 
-        // ✅ REMOVED: window.location.reload() - this was causing navigation
+        //  REMOVED: window.location.reload() - this was causing navigation
         // Just return success so modal can handle the UI update
 
       } else {
@@ -272,8 +272,8 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
         throw new Error(errorData.error || `Failed to update status: ${response.status} ${response.statusText}`);
       }
     } catch (error) {
-      console.error('❌ Error updating status:', error);
-      throw error; // ✅ Throw error so modal can handle it
+      console.error('[DocumentUpload][MedicalTable] Error updating status:', error.message);
+      throw error; //  Throw error so modal can handle it
     } finally {
       setStatusUpdateLoading(false);
     }
@@ -286,7 +286,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
     setExpandedHealthMetricId(null);
     setExtractedText(null);
     setExtractionError(null);
-    console.log('=== PARAMETERS RESET TO N/A ===');
+    console.debug('[DocumentUpload][MedicalTable] Parameters reset to default N/A state');
   };
 
   // Function to combine results from multiple processed documents
@@ -357,7 +357,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
 
     return { combined, allHealthMetricsData };
   };
-  // ✅ ADD THIS NEW FUNCTION
+  //  ADD THIS NEW FUNCTION
   const handleConfirmClick = async () => {
     if (!modalMessage.trim()) {
       alert('Please enter a message before confirming.');
@@ -379,15 +379,15 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
         newStatus = 'Needs Investigation';
       }
 
-      // ✅ SHOW SUCCESS POPUP
+      //  SHOW SUCCESS POPUP
       setModalStatus('success');
 
-      // ✅ AUTO-CLOSE AFTER 2 SECONDS
+      //  AUTO-CLOSE AFTER 2 SECONDS
       setTimeout(() => {
         setModalOpen(false);
         setModalMessage('');
         setCurrentStatus(newStatus);
-        // ✅ REMOVED: window.location.reload() - NO MORE ABRUPT RELOAD
+        //  REMOVED: window.location.reload() - NO MORE ABRUPT RELOAD
       }, 2000);
 
     } catch (err) {
@@ -705,15 +705,15 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
         if (data.success && Array.isArray(data.data)) {
           setProposerHealthData(data.data);
         } else {
-          console.error('Invalid health metrics response:', data);
+          console.error('[DocumentUpload][MedicalTable] Invalid health metrics response:', data);
           setProposerHealthData([]);
         }
       } else {
-        console.error('Failed to fetch health metrics:', response.status);
+        console.error('[DocumentUpload][MedicalTable] Failed to fetch health metrics:', response.status);
         setProposerHealthData([]);
       }
     } catch (error) {
-      console.error('Error fetching health metrics:', error);
+      console.error('[DocumentUpload][MedicalTable] Error fetching health metrics:', error);
       setProposerHealthData([]);
     } finally {
       setLoadingHealthData(false);
@@ -728,26 +728,26 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
     setMedicalDocumentsError(null);
 
     try {
-      console.log('Fetching medical documents for proposer:', proposer_id);
-      const response = await fetch(`http://13.232.45.218:5000/api/documents/${proposer_id}`);
+      console.info('[DocumentUpload][MedicalTable] Fetching medical documents for proposer:', proposer_id);
+      const response = await fetch(`http://localhost:5000/api/documents/${proposer_id}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch medical documents: ${response.status}`);
       }
 
       const documents = await response.json();
-      console.log('All documents received:', documents);
+      console.debug('[DocumentUpload][MedicalTable] All documents received:', { count: documents.length });
 
       // Filter to only show medical documents
       const medicalDocs = documents.filter(doc => {
         const docType = (doc.document_type || '').toLowerCase();
         const docName = (doc.name || '').toLowerCase();
         const isMedical = docType.includes('medical') || docName.includes('medical');
-        console.log(`Filtering document: ${doc.id}, type: "${docType}", name: "${docName}", isMedical: ${isMedical}`);
+        console.debug('[DocumentUpload][MedicalTable] Filtering document:', { id: doc.id, type: docType, name: docName, isMedical });
         return isMedical;
       });
 
-      console.log('Filtered medical documents:', medicalDocs);
+      console.debug('[DocumentUpload][MedicalTable] Filtered medical documents:', { count: medicalDocs.length });
 
       // Map the filtered documents with extracted_data properly handled
       const mappedMedicalDocs = medicalDocs.map(doc => ({
@@ -775,7 +775,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
       }));
 
       setMedicalDocuments(mappedMedicalDocs);
-      console.log('Medical documents set with extracted data:', mappedMedicalDocs.length, 'documents');
+      console.debug('[DocumentUpload][MedicalTable] Medical documents set with extracted data:', { count: mappedMedicalDocs.length });
 
       // Immediately process verification data from existing extracted_data
       const immediateVerifications = [];
@@ -847,11 +847,11 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
       // Log which documents have existing data
       mappedMedicalDocs.forEach(doc => {
         const hasData = doc.extracted_data && Object.keys(doc.extracted_data).length > 0;
-        console.log(`Document ${doc.document_id}: has extracted data = ${hasData}`);
+        console.debug('[DocumentUpload][MedicalTable] Document extracted data check:', { documentId: doc.document_id, hasData });
       });
 
     } catch (err) {
-      console.error('Error fetching medical documents:', err);
+      console.error('[DocumentUpload][MedicalTable] Error fetching medical documents:', err);
       setMedicalDocumentsError(err.message);
       setMedicalDocuments([]);
     } finally {
@@ -927,7 +927,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
   // REPLACE the existing handleProcessAllDocuments function with this enhanced version:
   const handleProcessAllDocuments = async () => {
     if (medicalDocuments.length === 0) {
-      console.log('No documents to process');
+      console.debug('[DocumentUpload][MedicalTable] No documents to process');
       return;
     }
 
@@ -939,7 +939,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
       window.history.replaceState({}, '', newUrl);
     }
 
-    console.log('=== ENHANCED BATCH PROCESSING START ===', { documents: medicalDocuments });
+    console.info('[DocumentUpload][MedicalTable] Enhanced batch processing started:', { documentCount: medicalDocuments.length });
     resetParametersToDefault();
     setIsBatchProcessing(true);
     setBatchProcessingProgress(0);
@@ -957,10 +957,10 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
     medicalDocuments.forEach(doc => {
       if (doc.extracted_data && Object.keys(doc.extracted_data).length > 0) {
         documentsWithData.push(doc);
-        console.log(`Document ${doc.document_id} already has extracted data - using existing data`);
+        console.debug('[DocumentUpload][MedicalTable] Document already has extracted data:', { documentId: doc.document_id });
       } else {
         documentsNeedingProcessing.push(doc);
-        console.log(`Document ${doc.document_id} needs processing`);
+        console.debug('[DocumentUpload][MedicalTable] Document needs processing:', { documentId: doc.document_id });
       }
     });
 
@@ -1057,7 +1057,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
 
         try {
           const response = await fetch(
-            `http://13.232.45.218:5000/api/medical-document-processing/extract-document/${doc.document_id}`,
+            `http://localhost:5000/api/medical-document-processing/extract-document/${doc.document_id}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1125,7 +1125,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
             }));
 
           } else {
-            console.error(`Document ${doc.document_id} failed:`, result.error);
+            console.error(`[DocumentUpload][MedicalTable] Document ${doc.document_id} failed:`, result.error);
             results.push({
               documentId: doc.document_id,
               documentType: doc.document_type,
@@ -1139,7 +1139,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
             }));
           }
         } catch (docError) {
-          console.error(`Error processing document ${doc.document_id}:`, docError);
+          console.error(`[DocumentUpload][MedicalTable] Error processing document ${doc.document_id}:`, docError);
           results.push({
             documentId: doc.document_id,
             documentType: doc.document_type,
@@ -1165,17 +1165,16 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
       setProcessedHealthAnalysis(allHealthMetricsData);
       setBatchProcessingStatus(`Completed: ${combined.successfulDocuments}/${totalDocuments} documents (${alreadyProcessedCount} from existing data, ${needProcessingCount - (totalDocuments - combined.successfulDocuments)} newly processed)`);
 
-      console.log('=== ENHANCED BATCH PROCESSING COMPLETE ===');
-      console.log('Combined Results:', combined);
-      console.log('Health Metrics Data:', allHealthMetricsData);
-      console.log('Documents from existing data:', alreadyProcessedCount);
-      console.log('Newly processed documents:', needProcessingCount);
+      console.info('[DocumentUpload][MedicalTable] Enhanced batch processing completed');
+      console.debug('[DocumentUpload][MedicalTable] Combined results:', { hasData: !!combined });
+      console.debug('[DocumentUpload][MedicalTable] Health metrics data:', { hasData: !!allHealthMetricsData });
+      console.debug('[DocumentUpload][MedicalTable] Processing summary:', { existingData: alreadyProcessedCount, newlyProcessed: needProcessingCount });
 
       // Refresh medical documents list
       fetchMedicalDocuments();
 
     } catch (error) {
-      console.error('Enhanced batch processing failed:', error);
+      console.error('[DocumentUpload][MedicalTable] Enhanced batch processing failed:', error.message);
       setBatchProcessingStatus('Batch processing failed: ' + error.message);
     } finally {
       setTimeout(() => {
@@ -1202,7 +1201,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
         textAlign: 'center',
         fontFamily: 'PP Neue Montreal, sans-serif'
       }}>
-        {/* ✅ REPLACE WITH JUST THE TICK ICON: */}
+        {/*  REPLACE WITH JUST THE TICK ICON: */}
         <img
           src={tickIconUrl}
           alt="Success"
@@ -1340,7 +1339,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
       }
     ];
   };
-// ✅ ADD THIS: Force enable body scroll at all times
+//  ADD THIS: Force enable body scroll at all times
 useEffect(() => {
   // Ensure body scroll is never locked
   document.body.style.overflow = '';
@@ -1365,19 +1364,19 @@ useEffect(() => {
     fetchProposerHealthMetrics();
   }, [proposer_id]);
 
-  // ✅ UPDATED: Fetch initial status when component mounts
+  //  UPDATED: Fetch initial status when component mounts
   useEffect(() => {
     fetchCurrentStatus();
   }, [proposer_id]);
 
-  // ✅ NEW: Listen for status updates
+  //  NEW: Listen for status updates
   useEffect(() => {
     const handleStatusUpdate = (event) => {
       const { proposer_id: updatedProposerId, status } = event.detail;
 
       // Only update if it's for the current proposer
       if (updatedProposerId === proposer_id) {
-        console.log('[MEDICAL_TABLE] Status updated via event:', status);
+        console.debug('[DocumentUpload][MedicalTable] Status updated via event:', status);
         setCurrentStatus(status);
       }
     };
@@ -1412,7 +1411,7 @@ useEffect(() => {
     const shouldProcessDocs = searchParams.get('processDocs') === 'true';
 
     if (shouldProcessDocs && !autoProcessingTriggered && medicalDocuments.length > 0) {
-      console.log('🚀 Auto-processing medical documents triggered from dashboard...');
+      console.info('[DocumentUpload][MedicalTable] Auto-processing medical documents triggered from dashboard');
       setAutoProcessingTriggered(true);
       setShowLoadingScreen(true); // Show loading screen
       setIsDocumentsProcessed(false); // Mark as not processed yet
@@ -1453,7 +1452,7 @@ useEffect(() => {
       if (data?.pdfUrl) setPreviewUrl(data.pdfUrl);
       else throw new Error('PDF URL not found');
     } catch (error) {
-      console.error('Error fetching PDF URL:', error);
+      console.error('[DocumentUpload][MedicalTable] Error fetching PDF URL:', error);
       setPreviewError(error.message);
     }
   };
@@ -1547,7 +1546,7 @@ useEffect(() => {
   };
 
   const handleMenuOptionClick = (action, itemName) => {
-    console.log(`Action: ${action} for item: ${itemName}`);
+    console.info('[DocumentUpload][MedicalTable] Menu option clicked:', { action, itemName });
     setOpenDropdown(null);
 
     if (action === 'switch-member') {
@@ -1716,7 +1715,7 @@ useEffect(() => {
     <div
       className="w-full flex flex-col gap-3 relative"
       style={{
-        maxHeight: '90vh', // ✅ INCREASED: Changed from 85vh to 90vh for bigger tables
+        maxHeight: '90vh', //  INCREASED: Changed from 85vh to 90vh for bigger tables
         overflowY: 'auto',
         backgroundColor: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(10px)',
@@ -1739,13 +1738,13 @@ useEffect(() => {
         <div
           className="fixed inset-0 z-40"
           onClick={(e) => {
-            // ✅ ONLY close dropdowns/expansion, don't prevent default scroll
+            //  ONLY close dropdowns/expansion, don't prevent default scroll
             setOpenDropdown(null);
             setExpandedHealthMetricId(null);
           }}
           style={{
-            pointerEvents: 'auto', // ✅ Allow click events
-            backgroundColor: 'transparent' // ✅ Invisible backdrop
+            pointerEvents: 'auto', //  Allow click events
+            backgroundColor: 'transparent' //  Invisible backdrop
           }}
         />
       )} */}
@@ -1939,10 +1938,10 @@ useEffect(() => {
                   }}
                   loading="lazy"
                   onLoad={() => {
-                    console.log('📄 Medical document preview loaded successfully');
+                    console.debug('[DocumentUpload][MedicalTable] Medical document preview loaded successfully');
                   }}
                   onError={() => {
-                    console.error('❌ Error loading medical document preview');
+                    console.error('[DocumentUpload][MedicalTable] Error loading medical document preview');
                     setPreviewError('Failed to load document preview. Please try again.');
                   }}
                 />
@@ -2033,7 +2032,7 @@ useEffect(() => {
               </button>
               <button
                 onClick={() => {
-                  console.log('Export combined results:', combinedResults);
+                  console.debug('[DocumentUpload][MedicalTable] Export combined results:', { hasData: !!combinedResults });
                 }}
                 className={`bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${isDesktop ? 'px-4 py-2' : 'px-3 py-1 text-sm'
                   }`}
@@ -2147,8 +2146,8 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Health Metrics Cards Container - ✅ INCREASED HEIGHT */}
-          {/* Health Metrics Cards Container - ✅ FIXED SCROLL FREEZE */}
+          {/* Health Metrics Cards Container -  INCREASED HEIGHT */}
+          {/* Health Metrics Cards Container -  FIXED SCROLL FREEZE */}
           <div
             ref={scrollContainerRef}
             className="flex flex-col gap-1 flex-1 relative"
@@ -2159,7 +2158,7 @@ useEffect(() => {
               WebkitOverflowScrolling: 'touch',
               scrollBehavior: 'smooth',
               paddingBottom: '20px',
-              overscrollBehavior: 'contain', // ✅ KEY FIX: Prevent scroll propagation
+              overscrollBehavior: 'contain', //  KEY FIX: Prevent scroll propagation
             }}
           >
             {filteredHealthMetrics.length > 0 ? (
@@ -2187,7 +2186,7 @@ useEffect(() => {
                 return (
                   <div
                     key={metric.id}
-                    id={`metric-${metric.id}`} // ✅ ADD ID for scroll targeting
+                    id={`metric-${metric.id}`} //  ADD ID for scroll targeting
                     className={`w-full transition-all duration-300 flex-shrink-0 relative ${expandedHealthMetricId === metric.id
                       ? `${isDesktop ? 'p-3' : 'p-2'} bg-blue-50 rounded-lg border border-blue-200`
                       : `${isDesktop ? 'p-2' : 'p-1'} bg-blue-50/50 rounded-lg border border-blue-100/30`
@@ -2225,13 +2224,13 @@ useEffect(() => {
                         )}
                         <button
                           onClick={(e) => {
-                            // ✅ FIXED: Remove all event blocking
+                            //  FIXED: Remove all event blocking
                             const wasExpanded = expandedHealthMetricId === metric.id;
 
                             // Toggle the expansion state
                             setExpandedHealthMetricId(wasExpanded ? null : metric.id);
 
-                            // ✅ SMOOTH SCROLL: After state update, scroll to show content
+                            //  SMOOTH SCROLL: After state update, scroll to show content
                             if (!wasExpanded) {
                               setTimeout(() => {
                                 const element = document.getElementById(`metric-${metric.id}`);
@@ -2247,7 +2246,7 @@ useEffect(() => {
                           }}
                           className="p-0.5 hover:bg-blue-100 rounded transition-colors"
                           aria-label={`Toggle ${metric.title} parameters`}
-                          style={{ cursor: 'pointer' }} // ✅ Ensure proper cursor
+                          style={{ cursor: 'pointer' }} //  Ensure proper cursor
                         >
                           <img
                             src={chevronDownIcon}
@@ -2259,15 +2258,15 @@ useEffect(() => {
                       </div>
                     </div>
 
-                    {/* ✅ EXPANDED CONTENT - PROPER CONTAINER */}
+                    {/*  EXPANDED CONTENT - PROPER CONTAINER */}
                     {expandedHealthMetricId === metric.id && (
                       <div
                         className="mt-2 space-y-2"
                         style={{
-                          maxHeight: '300px', // ✅ LIMIT HEIGHT
-                          overflowY: 'auto',   // ✅ ALLOW SCROLL
+                          maxHeight: '300px', //  LIMIT HEIGHT
+                          overflowY: 'auto',   //  ALLOW SCROLL
                           overflowX: 'hidden',
-                          paddingRight: '4px'  // ✅ SPACE FOR SCROLLBAR
+                          paddingRight: '4px'  //  SPACE FOR SCROLLBAR
                         }}
                       >
                         <div className="flex items-center justify-between">
@@ -2389,7 +2388,7 @@ useEffect(() => {
         {/* Right Column with documents and health matrix - Responsive with INCREASED HEIGHTS */}
         <div className={`${isDesktop ? 'w-72 flex-shrink-0' : 'w-full'} flex flex-col gap-2 relative z-10`}>
 
-          {/* Medical Documents Reports Table - ✅ INCREASED HEIGHT */}
+          {/* Medical Documents Reports Table -  INCREASED HEIGHT */}
           {/* Medical Documents - FIXED TO SHOW FULL NAMES */}
           <div className="bg-white/50 rounded-xl border border-gray-300/30 overflow-visible relative">
             <div
@@ -2401,7 +2400,7 @@ useEffect(() => {
               <div className="px-1">Medical Documents</div>
             </div>
 
-            {/* ✅ REDUCED HEIGHT: Changed from 250px to 180px to make room */}
+            {/*  REDUCED HEIGHT: Changed from 250px to 180px to make room */}
             <div className={`border border-white/10 rounded-b-xl overflow-y-auto ${isDesktop ? 'max-h-[180px]' : 'max-h-[150px]'}`}>
               {displayDocuments.length > 0 ? (
                 displayDocuments.map((doc, index) => (
@@ -2410,7 +2409,7 @@ useEffect(() => {
                     className={`flex items-start justify-between px-1 py-2 border-b border-gray-200 ${index % 2 ? 'bg-blue-50' : 'bg-white'} relative`}
                   >
                     <div className="flex-1 px-1">
-                      {/* ✅ FIRST LINE: Document name and status badges in single line */}
+                      {/*  FIRST LINE: Document name and status badges in single line */}
                       <div className="flex items-center mb-1">
                         <span
                           className={`text-gray-800 font-medium ${isDesktop ? 'text-xs' : 'text-xs'} truncate flex-1`}
@@ -2436,7 +2435,7 @@ useEffect(() => {
                         )}
                       </div>
 
-                      {/* ✅ SECOND LINE: DB badge only */}
+                      {/*  SECOND LINE: DB badge only */}
                       <div className="flex items-start">
                         <span
                           className={`text-xs px-1 py-0.5 rounded border font-medium ${getDocumentTypeBadge(doc.document_type)}`}
@@ -2479,7 +2478,7 @@ useEffect(() => {
           </div>
 
 
-          {/* Health Matrix Measurements Table - ✅ INCREASED HEIGHT */}
+          {/* Health Matrix Measurements Table -  INCREASED HEIGHT */}
           {/* Health Matrix - FIXED TO SHOW FULL NAMES */}
           <div className="bg-white/50 rounded-xl border border-gray-300/30 overflow-visible relative">
             <div
@@ -2512,7 +2511,7 @@ useEffect(() => {
                   className={`flex items-center justify-between px-1 py-2 border-b border-gray-200 last:border-b-0 ${measurement.bgColor} relative`}
                 >
                   <div className="flex-1 px-1">
-                    {/* ✅ FULL MEASUREMENT NAME WITH WRAPPING */}
+                    {/*  FULL MEASUREMENT NAME WITH WRAPPING */}
                     <span
                       className={`text-gray-800 font-medium ${isDesktop ? 'text-xs' : 'text-xs'}`}
                       style={{
@@ -2522,7 +2521,7 @@ useEffect(() => {
                         display: 'block'
                       }}
                     >
-                      {measurement.name} {/* ✅ FULL NAME, NO TRUNCATION */}
+                      {measurement.name} {/*  FULL NAME, NO TRUNCATION */}
                     </span>
                   </div>
 
@@ -2537,7 +2536,7 @@ useEffect(() => {
                         whiteSpace: 'normal'
                       }}
                     >
-                      {measurement.value} {/* ✅ FULL VALUE */}
+                      {measurement.value} {/*  FULL VALUE */}
                     </div>
                   </div>
 
@@ -2589,13 +2588,13 @@ useEffect(() => {
               <div className="px-1">Name Verification Results</div>
             </div>
 
-            {/* ✅ REDUCED HEIGHT: Changed from 150px to 120px */}
+            {/*  REDUCED HEIGHT: Changed from 150px to 120px */}
             <div className={`border border-white/10 rounded-b-xl overflow-y-auto ${isDesktop ? 'max-h-[120px]' : 'max-h-[100px]'}`}>
               {allNameVerifications.length > 0 ? (
                 allNameVerifications.map((nameVerif, index) => (
                   <div key={nameVerif.documentId} className={`p-2 border-b border-gray-200 last:border-b-0 ${index % 2 ? 'bg-blue-50' : 'bg-white'}`}>
                     <div className="flex items-start justify-between mb-2">
-                      {/* ✅ FULL DOCUMENT TYPE NAME WITH WRAPPING */}
+                      {/*  FULL DOCUMENT TYPE NAME WITH WRAPPING */}
                       <span
                         className={`font-medium text-gray-800 ${isDesktop ? 'text-xs' : 'text-xs'} flex-1 mr-2`}
                         style={{
@@ -2604,7 +2603,7 @@ useEffect(() => {
                           lineHeight: '1.3'
                         }}
                       >
-                        {formatDocumentType(nameVerif.documentType)} {/* ✅ FULL NAME, NO TRUNCATION */}
+                        {formatDocumentType(nameVerif.documentType)} {/*  FULL NAME, NO TRUNCATION */}
                       </span>
 
                       <div className={`px-1 py-0.5 rounded text-xs font-medium flex items-center gap-1 flex-shrink-0 ${nameVerif.verification.nameMatch === true
@@ -2621,14 +2620,14 @@ useEffect(() => {
                       </div>
                     </div>
 
-                    {/* ✅ FULL DETAILS WITH WRAPPING */}
+                    {/*  FULL DETAILS WITH WRAPPING */}
                     {nameVerif.verification.details && (
                       <div className="space-y-1">
                         {nameVerif.verification.details.patientName && (
                           <div className="text-xs text-gray-600">
                             <span className="font-medium">Doc: </span>
                             <span style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                              {nameVerif.verification.details.patientName} {/* ✅ FULL NAME */}
+                              {nameVerif.verification.details.patientName} {/*  FULL NAME */}
                             </span>
                           </div>
                         )}
@@ -2636,7 +2635,7 @@ useEffect(() => {
                           <div className="text-xs text-gray-600">
                             <span className="font-medium">Prop: </span>
                             <span style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                              {nameVerif.verification.details.proposerName} {/* ✅ FULL NAME */}
+                              {nameVerif.verification.details.proposerName} {/*  FULL NAME */}
                             </span>
                           </div>
                         )}
@@ -2650,7 +2649,7 @@ useEffect(() => {
                           className="text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded"
                           style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}
                         >
-                          {nameVerif.verification.issues[0]} {/* ✅ FULL ISSUE TEXT */}
+                          {nameVerif.verification.issues[0]} {/*  FULL ISSUE TEXT */}
                         </div>
                       </div>
                     )}
@@ -2672,7 +2671,7 @@ useEffect(() => {
         </div>
       </div >
 
-      {/* ✅ Bottom Status Action Buttons - Responsive */}
+      {/*  Bottom Status Action Buttons - Responsive */}
       < div className={`flex gap-1 mt-1 pt-1 border-t border-gray-200 ${isDesktop || isTablet ? 'justify-end' : 'justify-center'}`}>
         {/* Status Message or Action Buttons */}
         {
@@ -2690,7 +2689,7 @@ useEffect(() => {
                 {currentStatus === 'Approved' ? 'Approval Reason: ' : 'Rejection Reason: '}
               </span>
 
-              {/* ✅ FIXED: Show the actual message, with fallback only if truly empty */}
+              {/*  FIXED: Show the actual message, with fallback only if truly empty */}
               <span className="text-gray-700">
                 {modalMessage?.trim() ? modalMessage : 'No message provided'}
               </span>
@@ -2775,9 +2774,9 @@ useEffect(() => {
                 disabled={statusUpdateLoading || currentStatus === 'Needs Investigation'}
                 style={{
                   minWidth: 140,
-                  height: 'auto', // ✅ CHANGED: Allow height to adjust with text
-                  minHeight: isMobile ? 34 : isTablet ? 36 : isDesktop ? 38 : 40, // ✅ ADDED: Minimum height
-                  padding: '8px 12px', // ✅ CHANGED: Reduced horizontal padding like finance table
+                  height: 'auto', //  CHANGED: Allow height to adjust with text
+                  minHeight: isMobile ? 34 : isTablet ? 36 : isDesktop ? 38 : 40, //  ADDED: Minimum height
+                  padding: '8px 12px', //  CHANGED: Reduced horizontal padding like finance table
                   background: currentStatus === 'Needs Investigation' ? '#E2EAFB' : '#0252A9',
                   color: currentStatus === 'Needs Investigation' ? '#0252A9' : 'white',
                   borderRadius: 12,
@@ -2789,16 +2788,50 @@ useEffect(() => {
                   cursor: (statusUpdateLoading || currentStatus === 'Needs Investigation') ? 'not-allowed' : 'pointer',
                   opacity: (statusUpdateLoading || currentStatus === 'Needs Investigation') ? 0.7 : 1,
                   transition: 'all 0.2s',
-                  whiteSpace: 'normal', // ✅ ADDED: Allow text wrapping
-                  wordBreak: 'break-word', // ✅ ADDED: Break words if needed
-                  textAlign: 'center', // ✅ ADDED: Center the text
-                  lineHeight: '1.2', // ✅ ADDED: Better line spacing
-                  display: 'inline-block' // ✅ ADDED: Better layout for wrapping
+                  whiteSpace: 'normal', //  ADDED: Allow text wrapping
+                  wordBreak: 'break-word', //  ADDED: Break words if needed
+                  textAlign: 'center', //  ADDED: Center the text
+                  lineHeight: '1.2', //  ADDED: Better line spacing
+                  display: 'inline-block' //  ADDED: Better layout for wrapping
                 }}
               >
                 {statusUpdateLoading && currentStatus !== 'Needs Investigation'
                   ? 'Processing...'
                   : 'Needs Investigation'}
+              </button>
+              <button
+                onClick={() => {
+                  setModalOpen(true);
+                  setModalType('escalate');
+                  setModalStatus('confirm');
+                  setModalError('');
+                  setModalMessage('');
+                }}
+                disabled={statusUpdateLoading || currentStatus === 'Needs Investigation'}
+                style={{
+                  minWidth: 140,
+                  height: 'auto', //  CHANGED: Allow height to adjust with text
+                  minHeight: isMobile ? 34 : isTablet ? 36 : isDesktop ? 38 : 40, //  ADDED: Minimum height
+                  padding: '8px 12px', //  CHANGED: Reduced horizontal padding like finance table
+                  background: currentStatus === 'Needs Investigation' ? '#E2EAFB' : '#0252A9',
+                  color: currentStatus === 'Needs Investigation' ? '#0252A9' : 'white',
+                  borderRadius: 12,
+                  border: 'none',
+                  fontFamily: 'PP Neue Montreal, "PP Neue Montreal", sans-serif',
+                  fontWeight: 500,
+                  fontSize: isMobile ? 12 : isTablet ? 13 : isDesktop ? 14 : 15,
+                  boxShadow: '0 4px 12px rgba(5, 82, 169, 0.18)',
+                  cursor: (statusUpdateLoading || currentStatus === 'Needs Investigation') ? 'not-allowed' : 'pointer',
+                  opacity: (statusUpdateLoading || currentStatus === 'Needs Investigation') ? 0.7 : 1,
+                  transition: 'all 0.2s',
+                  whiteSpace: 'normal', //  ADDED: Allow text wrapping
+                  wordBreak: 'break-word', //  ADDED: Break words if needed
+                  textAlign: 'center', //  ADDED: Center the text
+                  lineHeight: '1.2', //  ADDED: Better line spacing
+                  display: 'inline-block' //  ADDED: Better layout for wrapping
+                }}
+              >
+                Escalate to Head
               </button>
 
             </div>
@@ -2806,7 +2839,7 @@ useEffect(() => {
         }
       </div >
 
-      {/* ✅ UPDATED MODAL with Required Message Input */}
+      {/*  UPDATED MODAL with Required Message Input */}
       {
         modalOpen && (
           <div style={{
@@ -2820,7 +2853,7 @@ useEffect(() => {
             fontFamily: 'PP Neue Montreal, "PP Neue Montreal", sans-serif'
           }}>
             <div style={{
-              minWidth: 320, maxWidth: 420, // ✅ Slightly wider for input field
+              minWidth: 320, maxWidth: 420, //  Slightly wider for input field
               background: 'white',
               borderRadius: 16,
               padding: 32,
@@ -2844,7 +2877,7 @@ useEffect(() => {
                     {modalType === 'investigate' && 'Please provide notes for further investigation:'}
                   </div>
 
-                  {/* ✅ NEW: Required Message Input */}
+                  {/*  NEW: Required Message Input */}
                   <textarea
                     value={modalMessage}
                     onChange={(e) => setModalMessage(e.target.value)}
@@ -2909,9 +2942,9 @@ useEffect(() => {
                             newStatus = 'Needs Investigation';
                           }
 
-                          // ✅ FIXED: Update both status and message immediately
+                          //  FIXED: Update both status and message immediately
                           setCurrentStatus(newStatus);
-                          setModalMessage(modalMessage.trim()); // ✅ Keep the message for display
+                          setModalMessage(modalMessage.trim()); //  Keep the message for display
 
                           // Show success popup
                           setSuccessMessage(modalMessage.trim());
@@ -2921,7 +2954,7 @@ useEffect(() => {
                           // Auto-dismiss success popup after 3 seconds
                           setTimeout(() => {
                             setShowSuccessPopup(false);
-                            // ✅ DON'T clear modalMessage here - keep it for status display
+                            //  DON'T clear modalMessage here - keep it for status display
                           }, 3000);
 
                         } catch (err) {
@@ -2933,7 +2966,7 @@ useEffect(() => {
                       Yes, Confirm
                     </button>
 
-                    {/* ✅ FIXED: Cancel button instead of duplicate "Yes, Confirm" */}
+                    {/*  FIXED: Cancel button instead of duplicate "Yes, Confirm" */}
                     <button
                       style={{
                         padding: '8px 20px',
@@ -2947,7 +2980,7 @@ useEffect(() => {
                       }}
                       onClick={() => {
                         setModalOpen(false);
-                        setModalMessage(''); // ✅ Clear message on cancel
+                        setModalMessage(''); //  Clear message on cancel
                       }}
                     >
                       Cancel
@@ -2966,7 +2999,7 @@ useEffect(() => {
               {/* Loading */}
               {modalStatus === 'loading' && (
                 <>
-                  {/* ✅ UPDATED: Blue rotating circle with logo in center */}
+                  {/*  UPDATED: Blue rotating circle with logo in center */}
                   <div style={{
                     position: 'relative',
                     width: 60,

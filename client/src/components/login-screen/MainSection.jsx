@@ -2,13 +2,30 @@
 // A React component that serves as the main content layout for pages in the Underwriter Dashboard, integrating a hero section, dynamic right section, and footer.
 
 // Import required dependency
-import React from 'react';
+import React, { useEffect } from 'react';
 // Import custom components
 import HeroSection from './LeftSection'; // Alias for LeftSection component
 import Footer from './Footer';
 
 // Define the MainSection component, accepting a dynamic RightComponent prop
 const MainSection = ({ RightComponent }) => {
+  // Log component lifecycle
+  useEffect(() => {
+    console.info('[UI][MainSection] Main section layout mounted');
+    
+    return () => {
+      console.debug('[UI][MainSection] Main section layout unmounting');
+    };
+  }, []);
+
+  // Log when RightComponent changes
+  useEffect(() => {
+    console.debug('[UI][MainSection] Right component updated:', { 
+      componentName: RightComponent?.name || 'Anonymous Component',
+      hasComponent: !!RightComponent 
+    });
+  }, [RightComponent]);
+
   return (
     // Main content wrapper with responsive flex layout and padding
     <div className="relative flex flex-col lg:flex-row w-full mx-auto min-h-[calc(100vh-120px)] gap-4 px-4 pb-4">
