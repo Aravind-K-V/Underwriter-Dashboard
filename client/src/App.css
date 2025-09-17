@@ -1,0 +1,60 @@
+/* App.css */
+/* Global styles for the application, defining the base appearance, layout, and animations for specific elements. */
+
+/* Set the background color for the entire page */
+body {
+  background-color: #F2F7FF; /* Light blue background for the application */
+}
+
+/* Style the root element of the React application */
+#root {
+  max-width: 1280px; /* Limit the maximum width to 1280px for content centering */
+  margin: 0 auto; /* Center the content horizontally */
+  padding: 2rem; /* Add padding around the content */
+  text-align: center; /* Center-align text within the root element */
+}
+
+/* Style for logo elements */
+.logo {
+  height: 6em; /* Set a fixed height for the logo */
+  padding: 1.5em; /* Add padding around the logo */
+  will-change: filter; /* Optimize for filter animations */
+  transition: filter 300ms; /* Smooth transition for filter effects */
+}
+
+/* Hover effect for the logo */
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa); /* Apply a purple drop shadow on hover */
+}
+
+/* Hover effect for logos with the 'react' class */
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa); /* Apply a cyan drop shadow for React-specific logos on hover */
+}
+
+/* Define a spinning animation for the logo */
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg); /* Start at 0 degrees rotation */
+  }
+  to {
+    transform: rotate(360deg); /* End at 360 degrees for a full rotation */
+  }
+}
+
+/* Apply the spinning animation to the second logo link when motion is not reduced */
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear; /* Continuous 20-second linear spin */
+  }
+}
+
+/* Style for card components */
+.card {
+  padding: 2em; /* Add padding inside card elements */
+}
+
+/* Style for 'read-the-docs' class, typically used for documentation links */
+.read-the-docs {
+  color: #888; /* Set a muted gray color for text */
+}
