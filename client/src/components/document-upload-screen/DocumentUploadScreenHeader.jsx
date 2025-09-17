@@ -75,10 +75,10 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       console.info('[DocumentUpload][Header] Fetching insurance data for proposer_id:', proposer_id);
 
       // Fetch premium from proposer table
-      const proposerResponse = await fetch(`http://localhost:5000/api/proposers/${proposer_id}/insurance-details`);
+      const proposerResponse = await fetch(`http://13.202.6.228:5000/api/proposers/${proposer_id}/insurance-details`);
 
       // Fetch sum insured from insured_member table
-      const memberResponse = await fetch(`http://localhost:5000/api/insured-members/${proposer_id}`);
+      const memberResponse = await fetch(`http://13.202.6.228:5000/api/insured-members/${proposer_id}`);
 
       let premium = null;
       let sumInsured = null;
@@ -134,7 +134,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       console.info('[DocumentUpload][Header] Fetching underwriting status for proposer_id:', proposer_id);
 
       //  FIXED: Correct URL path
-      const response = await fetch(`http://localhost:5000/api/underwriting/underwriting-status/${proposer_id}`);
+      const response = await fetch(`http://13.202.6.228:5000/api/underwriting/underwriting-status/${proposer_id}`);
 
       if (response.ok) {
         const statusData = await response.json();
@@ -192,7 +192,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       if (proposer_id) {
         try {
           // Fetch proposer data
-          const proposerResponse = await fetch(`http://localhost:5000/api/proposers/${proposer_id}`);
+          const proposerResponse = await fetch(`http://13.202.6.228:5000/api/proposers/${proposer_id}`);
           if (proposerResponse.ok) {
             const proposerData = await proposerResponse.json();
             setProposerData(proposerData);
@@ -202,7 +202,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
 
           //  FIXED: Corrected URL path - removed /underwriting prefix
           console.info('[DocumentUpload][Header] Fetching underwriting data for proposer:', proposer_id);
-          const underwritingResponse = await fetch(`http://localhost:5000/api/underwriting/underwriting-requests/${proposer_id}`);
+          const underwritingResponse = await fetch(`http://13.202.6.228:5000/api/underwriting/underwriting-requests/${proposer_id}`);
           if (underwritingResponse.ok) {
             const underwritingData = await underwritingResponse.json();
 
@@ -228,7 +228,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
             // Try to create a test request
             try {
               //  FIXED: Correct URL path for test request creation
-              const createResponse = await fetch(`http://localhost:5000/api/underwritng/underwriting-requests/${proposer_id}/test`, {
+              const createResponse = await fetch(`http://13.202.6.228:5000/api/underwritng/underwriting-requests/${proposer_id}/test`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -289,7 +289,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
       if (email) {
         console.info('[DocumentUpload][Header] Fetching user from user_login table for email:', email);
         try {
-          const response = await fetch(`http://localhost:5000/api/current-user/${encodeURIComponent(email)}`);
+          const response = await fetch(`http://13.202.6.228:5000/api/current-user/${encodeURIComponent(email)}`);
 
           if (response.ok) {
             const userFromDB = await response.json();
@@ -783,7 +783,7 @@ const DocumentHeader = ({ activeTab = 'Documents Uploaded' }) => {
               <button
                 onClick={async () => {
                   try {
-                    const response = await fetch(`http://localhost:5000/api/underwriting/underwriting-requests/${proposer_id}/test`, {
+                    const response = await fetch(`http://13.202.6.228:5000/api/underwriting/underwriting-requests/${proposer_id}/test`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',

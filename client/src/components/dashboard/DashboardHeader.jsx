@@ -57,7 +57,7 @@ const DashboardHeader = ({ onLogout, activeTab = 'Pending' }) => {
       if (email) {
         console.info('[Dashboard][Header] Fetching user from user_login table for email:', email);
         try {
-          const response = await fetch(`http://localhost:5000/api/current-user/${encodeURIComponent(email)}`);
+          const response = await fetch(`http://13.202.6.228:5000/api/current-user/${encodeURIComponent(email)}`);
 
           if (response.ok) {
             const userFromDB = await response.json();

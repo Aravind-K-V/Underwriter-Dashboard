@@ -37,7 +37,7 @@ const RightSectionForgot = () => {
     try {
       console.debug('[Auth][RightSectionForgot] Sending password reset request to API');
       // Send request to forgot-password API endpoint
-      const res = await axios.post('http://localhost:5000/api/forgot-password', {
+      const res = await axios.post('http://13.202.6.228:5000/api/forgot-password', {
         email_id: resetEmail, // Match backend expected field name
       });
 

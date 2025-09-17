@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 5000;
 
 //  CORS Configuration
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
+  origin: ['http://13.202.6.228:3000', 'http://13.202.6.228:5173'],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -110,7 +110,7 @@ app.get('/debug/routes', (req, res) => {
 app.listen(PORT, () => {
   prettyLog('Server started successfully', {
     port: PORT,
-    url: `http://localhost:${PORT}`,
+    url: `http://13.202.6.228:${PORT}`,
     timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
     corsEnabled: true,
     routes: {

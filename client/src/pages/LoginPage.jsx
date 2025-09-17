@@ -26,7 +26,7 @@ const LoginPage = () => {
     try {
       console.info('[Auth][Login] User login request received:', email);
       
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch('http://13.202.6.228:5000/api/login', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

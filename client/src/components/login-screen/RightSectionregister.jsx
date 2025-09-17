@@ -47,7 +47,7 @@ const RightSectionregister = ({
     console.info('[Auth][RightSectionRegister] Registration attempt initiated:', { name, email_id: email });
     try {
       // Send register request to API
-      const response = await axios.post('http://localhost:5000/api/register', {
+      const response = await axios.post('http://13.202.6.228:5000/api/register', {
         name,
         email_id: email,
         password,

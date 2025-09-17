@@ -91,7 +91,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
   // Fetch rule engine data
   const fetchRuleEngineData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/rule-engine-trail', {
+      const response = await fetch('http://13.202.6.228:5000/api/rule-engine-trail', {
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -123,7 +123,7 @@ const DashboardCustomerTable = ({ activeTab = "Pending", sidebarOpen }) => {
     const fetchCustomers = async () => {
       try {
         const [customersResponse, ruleData] = await Promise.all([
-          fetch(`http://localhost:5000/api/customers?status=${encodeURIComponent(activeTab)}`, {
+          fetch(`http://13.202.6.228:5000/api/customers?status=${encodeURIComponent(activeTab)}`, {
             headers: { 'Content-Type': 'application/json' },
           }),
           fetchRuleEngineData()

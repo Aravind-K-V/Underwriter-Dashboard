@@ -107,7 +107,7 @@ router.post('/forgot-password', async (req, res) => {
     console.info('[Auth][ForgotPassword] Reset token stored successfully:', email_id);
     prettyLog('Reset token stored successfully', { email_id }, { level: 'info' });
 
-    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}&email_id=${encodeURIComponent(email_id)}`;
+    const resetLink = `http://13.202.6.228:5173/reset-password?token=${resetToken}&email_id=${encodeURIComponent(email_id)}`;
     let emailError = null;
     
     try {
@@ -225,7 +225,7 @@ router.post('/reset-password', async (req, res) => {
         html: `
           <p>Dear Underwriter,</p>
           <p>Your password for your Kazunov 1AI account has been successfully reset.</p>
-          <p>You can now log in with your new password at <a href="http://localhost:5173/login">Kazunov 1AI</a>.</p>
+          <p>You can now log in with your new password at <a href="http://13.202.6.228:5173/login">Kazunov 1AI</a>.</p>
           <p>If you did not initiate this change, please contact support immediately.</p>
           <p>Best regards,<br>Kazunov 1AI Team</p>
         `,
@@ -351,7 +351,7 @@ router.post('/register', async (req, res) => {
     if (smtpVerified) {
       for (let i = 0; i < validAdmins.length; i++) {
         const admin = validAdmins[i];
-        const approvalLink = `http://localhost:5000/api/approve?token=${approvalTokens[admin.email_id]}&email_id=${encodeURIComponent(email_id)}`;
+        const approvalLink = `http://13.202.6.228:5000/api/approve?token=${approvalTokens[admin.email_id]}&email_id=${encodeURIComponent(email_id)}`;
         
         try {
           await transporter.sendMail({
@@ -468,7 +468,7 @@ router.get('/approve', async (req, res) => {
         subject: 'Registration Approved',
         html: `
           <p>Dear ${pendingUser.name},</p>
-          <p>Your registration has been approved! You can now log in at <a href="http://localhost:5173/login">Kazunov 1AI</a>.</p>
+          <p>Your registration has been approved! You can now log in at <a href="http://13.202.6.228:5173/login">Kazunov 1AI</a>.</p>
         `,
       });
       prettyLog('Approval confirmation email sent', { email_id });

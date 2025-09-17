@@ -18,8 +18,8 @@ import companyLogo from '../../assets/underwriter-dashboard-icons/web-icon.svg';
 import tickIcon from '../../assets/underwriter-dashboard-icons/tick.svg';
 
 // Environment variables with proper fallbacks
-const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:8090';
-const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5000';
+const PYTHON_API_URL = import.meta.env.VITE_PYTHON_API_URL || 'http://13.202.6.228:8090';
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://13.202.6.228:5000';
 
 // Debug logging for environment variables
 console.debug('[DocumentUpload][FinanceTable] Environment variables loaded:', { pythonApiUrl: PYTHON_API_URL, nodeApiUrl: NODE_API_URL });

@@ -64,7 +64,7 @@ const RightSectionlogin = ({ email: propEmail, setEmail: setPropEmail, password:
     console.info('[Auth][RightSectionLogin] Login attempt initiated:', { email });
     try {
       // Send login request to API
-      const response = await axios.post('http://localhost:5000/api/login', {
+      const response = await axios.post('http://13.202.6.228:5000/api/login', {
         email_id: email, // Match backend expected field name
         password,
       });

@@ -68,7 +68,7 @@ const RightSectionReset = () => {
     const validateToken = async () => {
       try {
         console.info('[Auth][RightSectionReset] Validating reset token for email:', email_id);
-        const response = await axios.get('http://localhost:5000/api/validate-reset-token', {
+        const response = await axios.get('http://13.202.6.228:5000/api/validate-reset-token', {
           params: { token, email_id },
         });
 
@@ -127,7 +127,7 @@ const RightSectionReset = () => {
 
     try {
       console.info('[Auth][RightSectionReset] Submitting password reset request');
-      const res = await axios.post('http://localhost:5000/api/reset-password', {
+      const res = await axios.post('http://13.202.6.228:5000/api/reset-password', {
         token,
         email_id, // Match backend expected field name
         new_password: newPassword, // Match backend expected field name

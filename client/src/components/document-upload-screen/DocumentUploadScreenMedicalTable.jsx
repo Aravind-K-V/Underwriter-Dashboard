@@ -27,7 +27,7 @@ import tickIconUrl from '../../assets/underwriter-dashboard-icons/tick.svg';
 
 
 // Environment variables - Updated for Vite
-const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://localhost:5000';
+const NODE_API_URL = import.meta.env.VITE_NODE_API_URL || 'http://13.202.6.228:5000';
 
 const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPresent, reviewFlags }) => {
   // Media query hooks for responsive design
@@ -729,7 +729,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
 
     try {
       console.info('[DocumentUpload][MedicalTable] Fetching medical documents for proposer:', proposer_id);
-      const response = await fetch(`http://localhost:5000/api/documents/${proposer_id}`);
+      const response = await fetch(`http://13.202.6.228:5000/api/documents/${proposer_id}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch medical documents: ${response.status}`);
@@ -1057,7 +1057,7 @@ const DocumentUploadScreenMedicalTable = ({ activeTab, setActiveTab, bothTabsPre
 
         try {
           const response = await fetch(
-            `http://localhost:5000/api/medical-document-processing/extract-document/${doc.document_id}`,
+            `http://13.202.6.228:5000/api/medical-document-processing/extract-document/${doc.document_id}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

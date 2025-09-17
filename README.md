@@ -43,7 +43,7 @@ A modern, React-based dashboard application designed for underwriters, featuring
    ```bash
    npm run dev
    ```
-4. Open [http://localhost:5173](http://localhost:5173) in your browser to view the application.
+4. Open [http://13.202.6.228:5173](http://13.202.6.228:5173) in your browser to view the application.
 
 ### 2. Server (Backend)
 1. Navigate to the server directory:
@@ -62,7 +62,7 @@ A modern, React-based dashboard application designed for underwriters, featuring
    ```bash
    node server.js
    ```
-5. The server will run on [http://localhost:5000](http://localhost:5000).
+5. The server will run on [http://13.202.6.228:5000](http://13.202.6.228:5000).
 
 ## Development
 
