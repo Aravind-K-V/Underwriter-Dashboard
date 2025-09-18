@@ -1,0 +1,31 @@
+# Health Score Engine Dependencies
+# Core data processing and analysis
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database connectivity
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+
+# Configuration and environment management
+python-dotenv>=1.0.0
+pyyaml>=6.0
+
+# Date and time handling
+python-dateutil>=2.8.0
+pytz>=2023.0
+
+# Logging and debugging
+colorlog>=6.0.0
+
+# JSON processing
+jsonschema>=4.0.0
+
+# Optional: For PDF processing if needed
+# pymupdf>=1.23.0
+
+# Development and testing (optional)
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
+# black>=23.0.0
+# flake8>=6.0.0

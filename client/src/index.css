@@ -1,0 +1,38 @@
+/* Global stylesheet for the application, integrating Tailwind CSS and defining custom styles for the watermark and body elements. */
+
+/* Import Tailwind CSS base styles (resets and foundational styles) */
+@tailwind base;
+
+/* Import Tailwind CSS component styles (predefined classes for components) */
+@tailwind components;
+
+/* Import Tailwind CSS utility styles (low-level utility classes) */
+@tailwind utilities;
+
+.watermark {
+  position: absolute; /* Position the watermark absolutely within its parent */
+  right: 0; /* Align to the right edge */
+  bottom: 0; /* Align to the bottom edge */
+  opacity: 0.1; /* Set low opacity for subtle appearance */
+  z-index: -1; /* Place behind all other content */
+  left: 82.22%; /* Specific left positioning (may override right: 0 in some contexts) */
+  top: 63.99%; /* Specific top positioning (may override bottom: 0 in some contexts) */
+  background: radial-gradient(
+    101.51% 101.51% at 5.01% 4.81%, /* Define gradient size and center */
+    rgba(204, 220, 255, 0.8) 0%, /* Start with semi-opaque light blue */
+    rgba(171, 198, 255, 0) 100% /* Fade to transparent */
+  );
+}
+
+/* Style for the body element */
+body {
+  background-color: #F3F5F9; /* Light gray-blue background for the entire page */
+  margin: 0; /* Remove default browser margin */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif; /* Use a system font stack for consistent typography */
+  -webkit-font-smoothing: antialiased; /* Smooth font rendering on WebKit browsers */
+  -moz-osx-font-smoothing: grayscale; /* Smooth font rendering on Firefox for macOS */
+}
+
+/* Rest of your existing CSS */
