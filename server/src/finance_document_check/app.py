@@ -12,17 +12,7 @@ from typing import Dict, Optional, List, Union
 from datetime import datetime
 import time
 from dotenv import load_dotenv
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-
-# ✅ DISTILBERT IMPORTS
-try:
-    from transformers import AutoTokenizer, AutoModel
-    import torch
-    DISTILBERT_AVAILABLE = True
-except ImportError:
-    DISTILBERT_AVAILABLE = False
-    logging.error("❌ transformers/torch not available. Install: pip install torch transformers")
+import difflib
 
 # Load environment variables
 load_dotenv()
@@ -49,33 +39,14 @@ HEADERS = {"Authorization": f"Bearer {IDP_API_KEY}"}
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# ✅ JSON SERIALIZATION HELPERS
-def convert_numpy_to_python(obj):
-    """Convert numpy types to Python native types for JSON serialization"""
-    if isinstance(obj, np.generic):
-        return obj.item()
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    elif isinstance(obj, dict):
-        return {key: convert_numpy_to_python(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [convert_numpy_to_python(item) for item in obj]
-    else:
-        return obj
-
-def safe_json_response(data):
-    """Create JSON response with numpy type conversion"""
-    converted_data = convert_numpy_to_python(data)
-    return JSONResponse(content=converted_data)
-
-class DistilBERTSemanticFieldMatcher:
-    """Production-ready DistilBERT-only semantic field matcher for document processing"""
+class LightweightFieldMatcher:
+    """Lightweight field matcher for document processing using string similarity"""
     
     def __init__(self):
         # Document-specific field extraction mapping
         self.document_expected_fields = {
-            "pan": ["name", "dob", "pan_number"],
-            "pan card": ["name", "dob", "pan_number"],
+            "pan": ["name", "pan_number"],  # Updated: Removed 'dob'
+            "pan card": ["name", "pan_number"],  # Updated: Removed 'dob'
             "itr": ["name", "pan_number", "salary"],
             "itr document": ["name", "pan_number", "salary"],
             "bank statement": ["name", "salary"],
@@ -88,146 +59,49 @@ class DistilBERTSemanticFieldMatcher:
             "net_salary", "net_change", "gross_salary", "total_income", "annual_income", "ctc", "take_home"
         ]
         
-        # ✅ INITIALIZE DISTILBERT MODEL ONLY
-        self._initialize_distilbert_model()
-        
-        # Performance optimization: cache embeddings
-        self.embedding_cache = {}
-        self.cache_limit = 2000  # Prevent unlimited memory growth
-        
-        logger.info(f"✅ DistilBERT Semantic Field Matcher initialized")
-        logger.info(f"   - DistilBERT model: {'✅' if self.distilbert_model else '❌'}")
+        logger.info(f"✅ Lightweight Field Matcher initialized")
 
-    def _initialize_distilbert_model(self):
-        """Initialize DistilBERT model only"""
-        self.distilbert_model = None
-        self.distilbert_tokenizer = None
-        
-        if DISTILBERT_AVAILABLE:
-            try:
-                logger.info("📥 Loading DistilBERT model (this may take a few moments)...")
-                self.distilbert_tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
-                self.distilbert_model = AutoModel.from_pretrained('distilbert-base-uncased')
-                self.distilbert_model.eval()  # Set to evaluation mode
-                
-                # Move to GPU if available
-                self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                self.distilbert_model.to(self.device)
-                
-                logger.info(f"✅ DistilBERT loaded successfully on {self.device}")
-            except Exception as e:
-                logger.error(f"❌ Failed to load DistilBERT model: {e}")
-                self.distilbert_model = None
-                self.distilbert_tokenizer = None
-        else:
-            logger.error("❌ DistilBERT not available. Install: pip install torch transformers")
-
-    def _get_distilbert_embedding(self, text: str) -> np.ndarray:
-        """Get DistilBERT embedding with caching for performance"""
-        if not self.distilbert_model or not text:
-            return np.zeros(768)  # DistilBERT embedding size
-        
-        text_clean = str(text).strip().lower()
-        
-        # Use cache for repeated queries
-        if text_clean in self.embedding_cache:
-            return self.embedding_cache[text_clean]
-        
-        try:
-            # Tokenize and encode
-            inputs = self.distilbert_tokenizer(
-                text_clean, 
-                return_tensors='pt', 
-                truncation=True, 
-                padding=True, 
-                max_length=128
-            )
-            
-            # Move inputs to device
-            inputs = {key: value.to(self.device) for key, value in inputs.items()}
-            
-            with torch.no_grad():
-                outputs = self.distilbert_model(**inputs)
-                last_hidden_state = outputs.last_hidden_state
-                
-                # Use mean pooling for better sentence representation
-                attention_mask = inputs['attention_mask']
-                input_mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
-                sum_embeddings = torch.sum(last_hidden_state * input_mask_expanded, 1)
-                sum_mask = torch.sum(input_mask_expanded, 1)
-                sum_mask = torch.clamp(sum_mask, min=1e-9)
-                mean_embeddings = sum_embeddings / sum_mask
-                
-                # Convert to numpy
-                embedding = mean_embeddings.cpu().numpy()[0]
-            
-            # Cache management: limit cache size
-            if len(self.embedding_cache) >= self.cache_limit:
-                # Remove oldest 200 entries
-                keys_to_remove = list(self.embedding_cache.keys())[:200]
-                for key in keys_to_remove:
-                    del self.embedding_cache[key]
-                logger.info(f"🗑️ Cleaned embedding cache (removed {len(keys_to_remove)} entries)")
-            
-            self.embedding_cache[text_clean] = embedding
-            return embedding
-            
-        except Exception as e:
-            logger.warning(f"⚠️ DistilBERT embedding error for '{text}': {e}")
-            return np.zeros(768)
-
-    def _calculate_distilbert_similarity(self, text1: str, text2: str, context: str = "") -> float:
-        """Calculate semantic similarity using DistilBERT embeddings"""
-        if not self.distilbert_model:
-            logger.error("❌ DistilBERT model not available")
+    def _calculate_similarity(self, text1: str, text2: str) -> float:
+        """Calculate string similarity using difflib"""
+        if not text1 or not text2:
             return 0.0
         
-        # Add context to improve semantic understanding
-        enhanced_text1 = f"{context} {text1}".strip() if context else text1
-        enhanced_text2 = f"{context} {text2}".strip() if context else text2
+        text1_clean = str(text1).strip().lower()
+        text2_clean = str(text2).strip().lower()
         
-        emb1 = self._get_distilbert_embedding(enhanced_text1)
-        emb2 = self._get_distilbert_embedding(enhanced_text2)
-        
-        try:
-            similarity = cosine_similarity([emb1], [emb2])[0][0]
-            # ✅ CONVERT TO PYTHON NATIVE FLOAT
-            return float(max(0.0, min(1.0, similarity)))  # Clamp between 0-1
-        except Exception as e:
-            logger.warning(f"⚠️ DistilBERT similarity calculation error: {e}")
-            return 0.0
+        return difflib.SequenceMatcher(None, text1_clean, text2_clean).ratio()
 
-    def _distilbert_name_matching(self, extracted: str, reference: str) -> float:
-        """Advanced name matching using DistilBERT"""
+    def _name_matching(self, extracted: str, reference: str) -> float:
+        """Name matching using string similarity"""
         if not extracted or not reference:
             return 0.0
         
-        extracted_clean = str(extracted).strip()
-        reference_clean = str(reference).strip()
+        extracted_clean = str(extracted).strip().lower()
+        reference_clean = str(reference).strip().lower()
         
         # 1. EXACT MATCH
-        if extracted_clean.lower() == reference_clean.lower():
+        if extracted_clean == reference_clean:
             logger.info(f"👤 EXACT name match: '{extracted_clean}' = '{reference_clean}'")
             return 1.0
         
-        # 2. DISTILBERT SEMANTIC SIMILARITY
-        semantic_score = self._calculate_distilbert_similarity(extracted_clean, reference_clean, "person full name")
-        logger.info(f"👤 DistilBERT semantic name score: {semantic_score:.3f}")
+        # 2. STRING SIMILARITY
+        seq_sim = self._calculate_similarity(extracted_clean, reference_clean)
+        logger.info(f"👤 String similarity name score: {seq_sim:.3f}")
         
-        # 3. TOKEN-BASED MATCHING WITH DISTILBERT
-        token_score = self._token_name_matching_distilbert(extracted_clean, reference_clean)
-        logger.info(f"👤 DistilBERT token name score: {token_score:.3f}")
+        # 3. TOKEN-BASED MATCHING
+        token_score = self._token_name_matching(extracted_clean, reference_clean)
+        logger.info(f"👤 Token name score: {token_score:.3f}")
         
         # 4. WEIGHTED COMBINATION
-        final_score = (semantic_score * 0.7) + (token_score * 0.3)
+        final_score = (seq_sim * 0.7) + (token_score * 0.3)
         
-        logger.info(f"👤 FINAL DistilBERT name match: '{extracted_clean}' vs '{reference_clean}' = {final_score:.3f}")
+        logger.info(f"👤 FINAL name match: '{extracted_clean}' vs '{reference_clean}' = {final_score:.3f}")
         return final_score
 
-    def _token_name_matching_distilbert(self, name1: str, name2: str) -> float:
-        """Token-based name matching with DistilBERT semantic similarity"""
-        tokens1 = set(name1.lower().split())
-        tokens2 = set(name2.lower().split())
+    def _token_name_matching(self, name1: str, name2: str) -> float:
+        """Token-based name matching"""
+        tokens1 = set(name1.split())
+        tokens2 = set(name2.split())
         
         if not tokens1 or not tokens2:
             return 0.0
@@ -236,8 +110,10 @@ class DistilBERTSemanticFieldMatcher:
         direct_overlap = len(tokens1.intersection(tokens2))
         total_tokens = len(tokens1.union(tokens2))
         
-        # Semantic token matching using DistilBERT
-        semantic_matches = 0
+        direct_ratio = direct_overlap / total_tokens if total_tokens > 0 else 0.0
+        
+        # Enhance with partial matches using difflib
+        partial_matches = 0
         for token1 in tokens1:
             best_match = 0.0
             for token2 in tokens2:
@@ -245,20 +121,18 @@ class DistilBERTSemanticFieldMatcher:
                     best_match = 1.0
                     break
                 else:
-                    sem_sim = self._calculate_distilbert_similarity(token1, token2)
-                    best_match = max(best_match, sem_sim)
+                    sim = self._calculate_similarity(token1, token2)
+                    best_match = max(best_match, sim)
             
-            if best_match > 0.8:  # High threshold for token matching
-                semantic_matches += best_match
+            if best_match > 0.8:
+                partial_matches += best_match
         
-        # Combine direct and semantic token matching
-        direct_ratio = direct_overlap / total_tokens if total_tokens > 0 else 0.0
-        semantic_ratio = semantic_matches / max(len(tokens1), len(tokens2)) if tokens1 or tokens2 else 0.0
+        partial_ratio = partial_matches / max(len(tokens1), len(tokens2)) if tokens1 or tokens2 else 0.0
         
-        return max(direct_ratio, semantic_ratio)
+        return max(direct_ratio, partial_ratio)
 
-    def _distilbert_salary_matching(self, extracted: str, reference: str) -> float:
-        """Advanced salary matching with 10% tolerance and DistilBERT semantic understanding"""
+    def _salary_matching(self, extracted: str, reference: str) -> float:
+        """Salary matching with 10% tolerance"""
         try:
             # 1. NUMERIC EXTRACTION
             extracted_num = float(re.sub(r'[^\d.]', '', str(extracted)))
@@ -283,46 +157,20 @@ class DistilBERTSemanticFieldMatcher:
             max_acceptable_diff = 50.0
             if percentage_diff >= max_acceptable_diff:
                 logger.warning(f"💰 SALARY MAJOR MISMATCH: {percentage_diff:.2f}% difference")
-                
-                # Try DistilBERT semantic matching as last resort
-                semantic_score = self._calculate_distilbert_similarity(
-                    f"salary amount {extracted}", 
-                    f"salary amount {reference}",
-                    "financial compensation money"
-                ) * 0.3  # Heavily penalized
-                
-                return semantic_score
+                return 0.0
             
             # Linear scaling between 10% and 50%
             numeric_score = 1.0 - ((percentage_diff - 10.0) / (max_acceptable_diff - 10.0))
             
-            # 3. DISTILBERT SEMANTIC CONTEXT MATCHING
-            semantic_score = self._calculate_distilbert_similarity(
-                f"salary income {extracted}", 
-                f"salary income {reference}",
-                "financial amount compensation"
-            )
-            
-            # Weighted combination (favor numeric)
-            final_score = (numeric_score * 0.8) + (semantic_score * 0.2)
-            
-            logger.info(f"💰 DISTILBERT SALARY SCALED MATCH: {percentage_diff:.2f}% diff, Numeric:{numeric_score:.3f}, Semantic:{semantic_score:.3f}, Final:{final_score:.3f}")
-            return max(0.0, final_score)
+            logger.info(f"💰 SALARY SCALED MATCH: {percentage_diff:.2f}% diff, Numeric:{numeric_score:.3f}")
+            return max(0.0, numeric_score)
             
         except (ValueError, ZeroDivisionError, TypeError) as e:
             logger.error(f"❌ Salary numeric extraction failed: {str(e)}")
-            
-            # Fallback to pure DistilBERT semantic matching
-            semantic_score = self._calculate_distilbert_similarity(
-                str(extracted), 
-                str(reference),
-                "salary income amount compensation"
-            )
-            logger.info(f"💰 DISTILBERT SALARY SEMANTIC FALLBACK: {semantic_score:.3f}")
-            return semantic_score
+            return 0.0
 
-    def _distilbert_date_matching(self, extracted: str, reference: str) -> float:
-        """Advanced date matching with normalization and DistilBERT semantic understanding"""
+    def _date_matching(self, extracted: str, reference: str) -> float:
+        """Date matching with normalization"""
         if not extracted or not reference:
             return 0.0
         
@@ -335,22 +183,18 @@ class DistilBERTSemanticFieldMatcher:
                 logger.info(f"📅 EXACT date match: '{extracted}' -> '{extracted_normalized}'")
                 return 1.0
             
-            # 2. DISTILBERT SEMANTIC SIMILARITY FOR DATE FORMATS
-            semantic_score = self._calculate_distilbert_similarity(
-                extracted_normalized, 
-                reference_normalized,
-                "date of birth calendar date"
-            )
+            # Fallback to string similarity if normalization fails
+            similarity = self._calculate_similarity(extracted, reference)
             
-            logger.info(f"📅 DISTILBERT DATE semantic match: '{extracted}' vs '{reference}' = {semantic_score:.3f}")
-            return semantic_score
+            logger.info(f"📅 DATE string match: '{extracted}' vs '{reference}' = {similarity:.3f}")
+            return similarity
             
         except Exception as e:
             logger.error(f"❌ Date matching error: {e}")
             return 0.0
 
-    def _distilbert_pan_matching(self, extracted: str, reference: str) -> float:
-        """PAN number matching with format validation and DistilBERT semantic fallback"""
+    def _pan_matching(self, extracted: str, reference: str) -> float:
+        """PAN number matching with format validation and string fallback"""
         if not extracted or not reference:
             return 0.0
         
@@ -382,39 +226,34 @@ class DistilBERTSemanticFieldMatcher:
         else:
             logger.warning(f"⚠️ Invalid PAN format detected: '{extracted_clean}' or '{reference_clean}'")
             
-            # DistilBERT semantic similarity for malformed PANs (reduced confidence)
-            semantic_score = self._calculate_distilbert_similarity(
-                extracted_clean, 
-                reference_clean,
-                "PAN permanent account number identification"
-            ) * 0.5  # Penalty for invalid format
+            # Fallback to string similarity (reduced confidence)
+            similarity = self._calculate_similarity(extracted_clean, reference_clean) * 0.5  # Penalty for invalid format
             
-            logger.info(f"🆔 DISTILBERT PAN semantic fallback: {semantic_score:.3f}")
-            return semantic_score
+            logger.info(f"🆔 PAN string fallback: {similarity:.3f}")
+            return similarity
 
-    # ✅ MAIN DISTILBERT FIELD SIMILARITY METHOD
     def _calculate_field_similarity(self, field_name: str, extracted: str, reference: str) -> float:
-        """Production DistilBERT field similarity calculation"""
+        """Field similarity calculation"""
         
-        logger.info(f"🔍 Calculating {field_name} DistilBERT similarity: '{extracted}' vs '{reference}'")
+        logger.info(f"🔍 Calculating {field_name} similarity: '{extracted}' vs '{reference}'")
         
         if field_name == "pan_number":
-            return self._distilbert_pan_matching(extracted, reference)
+            return self._pan_matching(extracted, reference)
         
         elif field_name == "dob":
-            return self._distilbert_date_matching(extracted, reference)
+            return self._date_matching(extracted, reference)
         
         elif field_name == "name":
-            return self._distilbert_name_matching(extracted, reference)
+            return self._name_matching(extracted, reference)
         
         elif field_name == "salary":
-            return self._distilbert_salary_matching(extracted, reference)
+            return self._salary_matching(extracted, reference)
         
         else:
-            # Generic DistilBERT semantic matching for other fields
-            semantic_score = self._calculate_distilbert_similarity(extracted, reference, field_name)
-            logger.info(f"🔍 Generic {field_name} DistilBERT semantic match: {semantic_score:.3f}")
-            return semantic_score
+            # Generic string matching for other fields
+            similarity = self._calculate_similarity(extracted, reference)
+            logger.info(f"🔍 Generic {field_name} string match: {similarity:.3f}")
+            return similarity
 
     # ✅ ALL OTHER METHODS (document processing, multi-page, etc.)
     def merge_multi_page_data(self, pages_data: List[dict]) -> dict:
@@ -544,8 +383,8 @@ class DistilBERTSemanticFieldMatcher:
                 
                 key_lower = key.lower()
                 for pattern in summary_patterns:
-                    # Use DistilBERT semantic similarity instead of fuzzy ratio
-                    if pattern in key_lower or self._calculate_distilbert_similarity(key_lower, pattern) > 0.85:
+                    # Use string similarity instead of fuzzy ratio
+                    if pattern in key_lower or self._calculate_similarity(key_lower, pattern) > 0.85:
                         cleaned_amount = self._clean_amount(value)
                         if cleaned_amount and cleaned_amount > 0:
                             salary_amounts.append(cleaned_amount)
@@ -600,7 +439,7 @@ class DistilBERTSemanticFieldMatcher:
         return None
 
     def _find_field_value(self, json_data: dict, field_type: str) -> Optional[str]:
-        """Find field value using DistilBERT semantic similarity with PAN regex extraction"""
+        """Find field value using string similarity with PAN regex extraction"""
         field_patterns = {
             "name": ["name", "full_name", "fullname", "customer_name", "applicant_name", 
                     "employee_name", "client_name", "person_name", "individual_name",
@@ -613,6 +452,13 @@ class DistilBERTSemanticFieldMatcher:
         
         patterns = field_patterns.get(field_type, [])
         
+        # ✅ SPECIAL HANDLING FOR PAN NUMBER - SEARCH ACROSS ALL FIELDS FIRST
+        if field_type == "pan_number":
+            # Try to find PAN number anywhere in the JSON data
+            pan_from_search = self._search_pan_in_all_fields(json_data)
+            if pan_from_search:
+                return pan_from_search
+        
         # Direct field matching (exact)
         for pattern in patterns:
             if pattern in json_data and json_data[pattern] is not None:
@@ -624,7 +470,7 @@ class DistilBERTSemanticFieldMatcher:
                         return extracted_pan
                 return value
         
-        # DistilBERT semantic field matching
+        # String similarity field matching
         for key, value in json_data.items():
             if value is None:
                 continue
@@ -639,10 +485,10 @@ class DistilBERTSemanticFieldMatcher:
                             return extracted_pan
                     return value
                 
-                # Use DistilBERT semantic similarity
-                semantic_similarity = self._calculate_distilbert_similarity(key_lower, pattern)
-                if semantic_similarity > 0.80:
-                    logger.info(f"🔍 DistilBERT semantic field match: '{key}' -> '{pattern}' (similarity: {semantic_similarity:.3f})")
+                # Use string similarity
+                similarity = self._calculate_similarity(key_lower, pattern)
+                if similarity > 0.80:
+                    logger.info(f"🔍 String similarity field match: '{key}' -> '{pattern}' (similarity: {similarity:.3f})")
                     # ✅ SPECIAL PAN NUMBER EXTRACTION
                     if field_type == "pan_number":
                         extracted_pan = self._extract_pan_from_text(str(value))
@@ -651,9 +497,9 @@ class DistilBERTSemanticFieldMatcher:
                     return value
         
         return None
+
     def _extract_pan_from_text(self, text: str) -> Optional[str]:
         """Extract PAN number from text using regex"""
-        import re
         # PAN format: AAAAA9999A (5 letters, 4 digits, 1 letter)
         pan_pattern = re.compile(r'[A-Z]{5}[0-9]{4}[A-Z]{1}')
         match = pan_pattern.search(text.upper())
@@ -667,7 +513,6 @@ class DistilBERTSemanticFieldMatcher:
 
     def _search_pan_in_all_fields(self, json_data: dict) -> Optional[str]:
         """Search for PAN number across all fields in the JSON data"""
-        import re
         pan_pattern = re.compile(r'[A-Z]{5}[0-9]{4}[A-Z]{1}')
         
         # Search in all string values in the JSON
@@ -705,68 +550,8 @@ class DistilBERTSemanticFieldMatcher:
         logger.warning("⚠️ No PAN number found in any field")
         return None
 
-    def _find_field_value(self, json_data: dict, field_type: str) -> Optional[str]:
-        """Find field value using DistilBERT semantic similarity with enhanced PAN regex extraction"""
-        field_patterns = {
-            "name": ["name", "full_name", "fullname", "customer_name", "applicant_name", 
-                    "employee_name", "client_name", "person_name", "individual_name",
-                    "holder_name", "account_holder", "cardholder_name"],
-            "dob": ["dob", "date_of_birth", "birth_date", "birthdate", "date_birth", "born_date"],
-            "pan_number": ["pan", "pan_number", "pannumber", "pan_card", "pancard", "pan_card_number", "pan_no"],
-            "salary": ["salary", "net_salary", "net_change", "net change", "gross_salary", "total_income", "annual_income", 
-                    "ctc", "take_home", "income", "earning", "total_salary"]
-        }
-        
-        patterns = field_patterns.get(field_type, [])
-        
-        # ✅ SPECIAL HANDLING FOR PAN NUMBER - SEARCH ACROSS ALL FIELDS FIRST
-        if field_type == "pan_number":
-            # Try to find PAN number anywhere in the JSON data
-            pan_from_search = self._search_pan_in_all_fields(json_data)
-            if pan_from_search:
-                return pan_from_search
-        
-        # Direct field matching (exact)
-        for pattern in patterns:
-            if pattern in json_data and json_data[pattern] is not None:
-                value = json_data[pattern]
-                # ✅ SPECIAL PAN NUMBER EXTRACTION
-                if field_type == "pan_number":
-                    extracted_pan = self._extract_pan_from_text(str(value))
-                    if extracted_pan:
-                        return extracted_pan
-                return value
-        
-        # DistilBERT semantic field matching
-        for key, value in json_data.items():
-            if value is None:
-                continue
-            
-            key_lower = key.lower()
-            for pattern in patterns:
-                if pattern in key_lower:
-                    # ✅ SPECIAL PAN NUMBER EXTRACTION
-                    if field_type == "pan_number":
-                        extracted_pan = self._extract_pan_from_text(str(value))
-                        if extracted_pan:
-                            return extracted_pan
-                    return value
-                
-                # Use DistilBERT semantic similarity
-                semantic_similarity = self._calculate_distilbert_similarity(key_lower, pattern)
-                if semantic_similarity > 0.80:
-                    logger.info(f"🔍 DistilBERT semantic field match: '{key}' -> '{pattern}' (similarity: {semantic_similarity:.3f})")
-                    # ✅ SPECIAL PAN NUMBER EXTRACTION
-                    if field_type == "pan_number":
-                        extracted_pan = self._extract_pan_from_text(str(value))
-                        if extracted_pan:
-                            return extracted_pan
-                    return value
-        
-        return None
-
     def extract_fields_from_json(self, json_data: Union[dict, list], document_type: str = None) -> dict:
-        """Extract and map fields based on document type with DistilBERT semantic logic"""
+        """Extract and map fields based on document type with string similarity logic"""
         
         try:
             # Handle error responses from IDP
@@ -814,9 +599,8 @@ class DistilBERTSemanticFieldMatcher:
             
             # DOCUMENT-SPECIFIC EXTRACTION LOGIC
             if document_type_lower in ["pan", "pan card"]:
-                # PAN: Extract name, dob, pan_number ONLY
+                # PAN: Extract name, pan_number ONLY
                 standardized_data["name"] = self._find_field_value(json_data, "name")
-                standardized_data["dob"] = self._standardize_dob(self._find_field_value(json_data, "dob"))
                 standardized_data["pan_number"] = self._find_field_value(json_data, "pan_number")
                 logger.info(f"🆔 PAN document processed: {standardized_data}")
                 
@@ -873,14 +657,13 @@ class DistilBERTSemanticFieldMatcher:
             logger.error(f"❌ Error in field extraction: {str(e)}")
             expected_fields = self.document_expected_fields.get(document_type.lower() if document_type else "payslip", ["name", "salary"])
             return {field: None for field in expected_fields}
-
     def compare_fields(self, extracted_data: dict, reference_data: dict, document_type: str) -> Dict[str, dict]:
-        """Compare extracted vs reference data using DistilBERT semantic approach"""
+        """Compare extracted vs reference data using lightweight approach"""
         results = {}
         document_type_lower = document_type.lower()
         expected_fields = self.document_expected_fields.get(document_type_lower, ["name", "salary"])
         
-        logger.info(f"🔍 DISTILBERT COMPARING {document_type} fields: {expected_fields}")
+        logger.info(f"🔍 COMPARING {document_type} fields: {expected_fields}")
         
         for field_name in expected_fields:
             extracted_value = extracted_data.get(field_name)
@@ -897,7 +680,6 @@ class DistilBERTSemanticFieldMatcher:
                         )
                         continue
                     
-                    # ✅ USE DISTILBERT SEMANTIC SIMILARITY
                     similarity = self._calculate_field_similarity(field_name, extracted_str, reference_str)
                     match_threshold = self._get_match_threshold(field_name)
                     is_match = similarity >= match_threshold
@@ -946,16 +728,16 @@ class DistilBERTSemanticFieldMatcher:
             return date_str
 
     def _create_comparison_result(self, extracted, reference, similarity, match, status, threshold=None):
-        """Create standardized comparison result with safe JSON serialization"""
+        """Create standardized comparison result"""
         result = {
             "extracted": extracted,
             "reference": reference,
-            "similarity": float(round(similarity, 4)),  # ✅ Ensure it's Python float
-            "match": bool(match),  # ✅ Ensure it's Python bool
-            "status": str(status)  # ✅ Ensure it's Python string
+            "similarity": round(similarity, 4),
+            "match": match,
+            "status": status
         }
         if threshold is not None:
-            result["threshold"] = float(threshold)  # ✅ Ensure it's Python float
+            result["threshold"] = threshold
         return result
 
     def _get_match_threshold(self, field_name: str) -> float:
@@ -1094,8 +876,8 @@ def save_extracted_data_to_db(document_id: int, extracted_data: dict, overall_ma
         logger.error(f"❌ Unexpected error saving extracted data for document {document_id}: {str(e)}")
         return False
 
-# ✅ INITIALIZE DISTILBERT FIELD MATCHER
-field_matcher = DistilBERTSemanticFieldMatcher()
+# ✅ INITIALIZE LIGHTWEIGHT FIELD MATCHER
+field_matcher = LightweightFieldMatcher()
 
 def upload_document_to_idp(s3_link: str, document_type: str, document_id: int) -> dict:
     """Call IDP API to process document with production-ready error handling"""
@@ -1163,7 +945,7 @@ def get_reference_data(proposer_id: int) -> dict:
         return {}
 
 def process_idp_response(idp_response, document_type, document_id):
-    """Process real IDP API response using DistilBERT semantic matcher"""
+    """Process real IDP API response using lightweight matcher"""
     try:
         logger.info(f"🔄 Processing IDP response for document {document_id} (type: {document_type})")
         
@@ -1192,7 +974,7 @@ class DocumentProcessResponse(BaseModel):
     status: str
 
 # FastAPI Application
-app = FastAPI(title="Production DistilBERT Semantic Document Processor")
+app = FastAPI(title="Lightweight Document Processor")
 
 app.add_middleware(
     CORSMiddleware,
@@ -1220,19 +1002,17 @@ async def options_handler(request: Request, path: str):
 async def health_check():
     return {
         "status": "healthy",
-        "service": "distilbert_semantic_document_processor",
+        "service": "lightweight_document_processor",
         "features": [
-            "distilbert_semantic_field_matching",
+            "string_similarity_field_matching",
             "10_percent_salary_tolerance", 
             "multi_page_support", 
             "database_storage",
             "strict_date_normalization",
-            "skip_already_processed",
-            "mean_pooling_embeddings"
+            "skip_already_processed"
         ],
         "models": {
-            "semantic_model": "distilbert-base-uncased" if DISTILBERT_AVAILABLE else "not_available",
-            "device": str(field_matcher.device) if DISTILBERT_AVAILABLE else "cpu"
+            "semantic_model": "none (lightweight mode)"
         },
         "supported_documents": ["PAN", "ITR Document", "Bank Statement"],
         "salary_tolerance": "10%",
@@ -1243,10 +1023,10 @@ async def health_check():
 # ✅ MAIN PROCESSING ENDPOINT
 @app.post("/process-document/{document_id}")
 async def process_single_document(document_id: int, request: Request):
-    """Production endpoint with DistilBERT semantic matching"""
+    """Production endpoint with lightweight matching"""
     try:
         start_time = time.time()
-        logger.info(f"🚀 Processing document ID: {document_id} with DISTILBERT SEMANTIC MATCHING")
+        logger.info(f"🚀 Processing document ID: {document_id} with LIGHTWEIGHT MATCHING")
         
         # Get document details INCLUDING extracted_data
         doc_record = get_document_by_id(document_id)
@@ -1291,7 +1071,7 @@ async def process_single_document(document_id: int, request: Request):
                     
                     overall_match = doc_record["validated"] if doc_record["validated"] is not None else False
                     
-                    return safe_json_response({
+                    return JSONResponse(content={
                         "document_id": document_id,
                         "document_type": doc_record["document_type"],
                         "proposal_number": doc_record["proposal_number"],
@@ -1303,14 +1083,14 @@ async def process_single_document(document_id: int, request: Request):
                         "accuracy_metrics": accuracy_metrics,
                         "processing_time": 0.001,
                         "status": "already_processed",
-                        "matching_method": "distilbert_semantic_cached",
+                        "matching_method": "lightweight_string_matching",
                         "message": "Document was already processed, returning cached results"
                     })
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning(f"⚠️ Error parsing existing extracted_data for document {document_id}: {e}")
         
         # NORMAL PROCESSING: Continue with IDP processing if no extracted_data
-        logger.info(f"📄 Processing document {document_id} with DISTILBERT SEMANTIC MATCHING")
+        logger.info(f"📄 Processing document {document_id} with LIGHTWEIGHT MATCHING")
         
         # Get proposer information
         conn = psycopg2.connect(**DB_CONFIG)
@@ -1336,10 +1116,10 @@ async def process_single_document(document_id: int, request: Request):
         is_multi_page = isinstance(idp_response, list) and len(idp_response) > 1
         page_count = len(idp_response) if isinstance(idp_response, list) else 1
         
-        # ✅ EXTRACT FIELDS USING DISTILBERT SEMANTIC APPROACH
+        # ✅ EXTRACT FIELDS USING LIGHTWEIGHT APPROACH
         extracted_data = process_idp_response(idp_response, doc_record["document_type"], document_id)
         
-        # ✅ COMPARE WITH REFERENCE DATA USING DISTILBERT SEMANTIC APPROACH
+        # ✅ COMPARE WITH REFERENCE DATA USING LIGHTWEIGHT APPROACH
         comparison_results = field_matcher.compare_fields(
             extracted_data, reference_data, doc_record["document_type"]
         )
@@ -1380,18 +1160,17 @@ async def process_single_document(document_id: int, request: Request):
                 "ITR Document": "name, pan_number, salary", 
                 "Bank Statement": "name, salary"
             },
-            "matching_method": "distilbert_semantic",
+            "matching_method": "lightweight_string_matching",
             "models_used": {
-                "semantic": "distilbert-base-uncased" if DISTILBERT_AVAILABLE else "not_available",
-                "device": str(field_matcher.device) if DISTILBERT_AVAILABLE else "cpu"
+                "semantic": "none (difflib-based)"
             },
             "salary_tolerance": "10%",
             "data_saved_to_db": save_success,
             "status": "newly_processed"
         }
         
-        logger.info(f"✅ Document {document_id} processed with DISTILBERT SEMANTIC MATCHING. Type: {doc_record['document_type']}, Multi-page: {is_multi_page}, Pages: {page_count}, Accuracy: {accuracy_metrics['overall_accuracy']}%")
-        return safe_json_response(response_data)
+        logger.info(f"✅ Document {document_id} processed with LIGHTWEIGHT MATCHING. Type: {doc_record['document_type']}, Multi-page: {is_multi_page}, Pages: {page_count}, Accuracy: {accuracy_metrics['overall_accuracy']}%")
+        return JSONResponse(content=response_data)
         
     except HTTPException:
         raise
