@@ -1,0 +1,11 @@
+{
+  "proposal_number": 1234567,
+  "proposer_id": 4,
+  "stated_age": 59,
+  "dob": "1966-01-23",
+  "occupation": "Self Employed",
+  "annual_income": 2000000.0,
+  "premium": 250000.0,
+  "sum_assured": 15000000.0,
+  "other_insurance_sum_assured": 0.0
+}

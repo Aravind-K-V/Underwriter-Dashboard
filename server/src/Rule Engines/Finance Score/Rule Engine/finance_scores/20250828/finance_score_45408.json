@@ -1,0 +1,34 @@
+{
+  "proposal_number": 45408,
+  "proposer_id": 5,
+  "sar_income_ratio": 0.3333333333333333,
+  "tsar_income_ratio": 0.3333333333333333,
+  "premium_income_ratio": 0.005333333333333333,
+  "sar_score": 1,
+  "tsar_score": 1,
+  "premium_score": 1,
+  "final_finance_score": 1,
+  "risk_category": "Safe",
+  "underwriting_flag": "Pass",
+  "score_factors": [
+    {
+      "feature": "sar_income_ratio",
+      "score": 1,
+      "weight": 0.5,
+      "contribution": 0.5
+    },
+    {
+      "feature": "tsar_income_ratio",
+      "score": 1,
+      "weight": 0.25,
+      "contribution": 0.25
+    },
+    {
+      "feature": "premium_income_ratio",
+      "score": 1,
+      "weight": 0.25,
+      "contribution": 0.25
+    }
+  ],
+  "validation_issues": []
+}
